@@ -2,9 +2,9 @@ import io
 import tempfile
 import time
 from typing import List, Optional
-import whisper
+import whisper # type: ignore
 import torch
-from pydub import AudioSegment
+from pydub import AudioSegment # type: ignore
 
 from extract_ogg import get_header_frames, split_ogg_data_into_frames, OggSFrame
 
@@ -46,8 +46,8 @@ class CreateNsAudioPackage(ExecutionModule):
             if not self.header_frames:
                 self.header_buffer += frame.raw_data
                 id_header_frame, comment_header_frames = get_header_frames(self.header_buffer)
-                print(f"ID Header Frame: {id_header_frame}")
-                print(f"Comment Header Frames: {comment_header_frames}")
+                # print(f"ID Header Frame: {id_header_frame}")
+                # print(f"Comment Header Frames: {comment_header_frames}")
 
                 if id_header_frame and comment_header_frames:
                     self.header_frames = []
@@ -100,7 +100,7 @@ class Whisper(ExecutionModule):
                         )
         self.ram_disk_path = "/mnt/ramdisk" # string: Path to the ramdisk
         self.task = "translate"             # string: transcribe, translate (transcribe or translate it to english)
-        self.model = "large"                # string: tiny, base, small, medium, large (Whisper model to use)
+        self.model = "tiny"                 # string: tiny, base, small, medium, large (Whisper model to use)
         self.models_path = ".models"        # string: Path to the model
         self.english_only = False           # boolean: Only translate to english
 
@@ -162,8 +162,11 @@ pipeline = Pipeline[bytes](controllers, name="WhisperPipeline")
 def callback(processed_data: DataPackage[bytes]) -> None:
     print(f"f")
     
-def error_callback(dp: DataPackage) -> None:
-    print(f"Error: {dp.errors}")
+def exit_callback(dp: DataPackage[bytes]) -> None:
+    print(f"Exit: dropped")
+
+def error_callback(dp: DataPackage[bytes]) -> None:
+    print(f"Error: {dp.errors[0]}")
 
 instance = pipeline.register_instance()
 
@@ -182,7 +185,7 @@ def simulate_live_audio_stream(file_path: str, sample_rate: int = 48000) -> None
         # Sleep to simulate real-time audio playback
         time.sleep(frame_duration)
 
-        pipeline.execute(frame.raw_data, instance, callback, error_callback)
+        pipeline.execute(frame.raw_data, instance, callback, exit_callback, error_callback)
 
 if __name__ == "__main__":
     # Path to the Ogg file
