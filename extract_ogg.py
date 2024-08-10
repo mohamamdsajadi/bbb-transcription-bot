@@ -223,11 +223,30 @@ def extract_comment_header_frames(frames: List[OggSFrame]) -> Optional[List[OggS
 
     return comment_header_frames
 
+def is_ogg_format(byte_data: bytes) -> bool:
+    return byte_data.startswith(b'OggS')
+
+def is_opus_format(ogg_frames: List[OggSFrame]) -> bool:
+    for frame in ogg_frames:
+        if frame.data.startswith(b'OpusHead'):
+            return True
+    return False
+
 def get_header_frames(byte_data: bytes) -> Tuple[Optional[OggSFrame], Optional[List[OggSFrame]]]:
     id_header_frame: Optional[OggSFrame] = None
     comment_header_frames: Optional[List[OggSFrame]] = None
 
+    # Check if it's an Ogg format
+    if not is_ogg_format(byte_data):
+        raise ValueError("The file is not in Ogg format.")
+
+
     ogg_frames: List[OggSFrame] = split_ogg_data_into_frames(byte_data)
+
+    # Check if it's an Opus stream
+    if not is_opus_format(ogg_frames):
+        raise ValueError("The Ogg file does not contain an Opus stream.")
+
     id_header_frame = extract_id_header_frame(ogg_frames)
     comment_header_frames = extract_comment_header_frames(ogg_frames)
 
