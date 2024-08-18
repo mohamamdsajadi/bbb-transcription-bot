@@ -1,5 +1,11 @@
 # live-translation
 
+## Prepare the Environment
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
 
 ## Create a Ramdisk in Linux
 To create a ramdisk in Linux with a size of 500MB and mount it at `/mnt/ramdisk/`, you can follow these steps:
