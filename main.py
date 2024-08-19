@@ -9,10 +9,12 @@ from pydub import AudioSegment # type: ignore
 from extract_ogg import get_header_frames, split_ogg_data_into_frames, OggSFrame
 
 from stream_pipeline.grpc_server import GrpcServer
-from stream_pipeline.data_package import DataPackage, DataPackageModule
-from stream_pipeline.module_classes import ExecutionModule, ModuleOptions
+from stream_pipeline.data_package import DataPackage, DataPackageController, DataPackagePhase, DataPackageModule
+from stream_pipeline.module_classes import Module, ExecutionModule, ModuleOptions
 from stream_pipeline.pipeline import Pipeline, ControllerMode, PipelinePhase, PipelineController
 
+
+import data
 
 def calculate_frame_duration(current_granule_position, previous_granule_position, sample_rate=48000):
     if previous_granule_position is None:
@@ -39,9 +41,9 @@ class CreateNsAudioPackage(ExecutionModule):
         self.header_buffer: bytes = b''
         self.header_frames: Optional[List[OggSFrame]] = None
 
-    def execute(self, dp: DataPackage[bytes], dpm: DataPackageModule) -> None:
+    def execute(self, dp: DataPackage[data.AudioData], dpc: DataPackageController, dpp: DataPackagePhase, dpm: DataPackageModule) -> None:
         if dp.data:
-            frame = OggSFrame(dp.data)
+            frame = OggSFrame(dp.data.raw_audio_data)
 
             if not self.header_frames:
                 self.header_buffer += frame.raw_data
@@ -54,7 +56,6 @@ class CreateNsAudioPackage(ExecutionModule):
                     self.header_frames.append(id_header_frame)
                     self.header_frames.extend(comment_header_frames)
                 else:
-                    dpm.success = False
                     dpm.message = "Could not find the header frames"
                     return
 
@@ -86,11 +87,11 @@ class CreateNsAudioPackage(ExecutionModule):
 
                 # Combine the audio buffer into a single audio package
                 n_seconds_of_audio: bytes = self.header_buffer + b''.join([frame.raw_data for frame in self.audio_data_buffer])
-                dp.data = n_seconds_of_audio
+                dp.data.raw_audio_data = n_seconds_of_audio
 
 
 
-class Whisper(ExecutionModule):
+class Whisper(Module):
     def __init__(self) -> None:
         super().__init__(ModuleOptions(
                                 use_mutex=True,
@@ -100,25 +101,29 @@ class Whisper(ExecutionModule):
                         )
         self.ram_disk_path = "/mnt/ramdisk" # string: Path to the ramdisk
         self.task = "translate"             # string: transcribe, translate (transcribe or translate it to english)
-        self.model = "tiny"                 # string: tiny, base, small, medium, large (Whisper model to use)
+        self.model = "large"                # string: tiny, base, small, medium, large (Whisper model to use)
         self.models_path = ".models"        # string: Path to the model
         self.english_only = False           # boolean: Only translate to english
 
         if self.model != "large" and self.english_only:
             self.model = self.model + ".en"
 
+        self._whisper_model: Optional[whisper.Whisper] = None
+        
+    def init_module(self) -> None:
         print(f"Loading model '{self.model}'...")
         self._whisper_model = whisper.load_model(self.model, download_root=self.models_path)
         print("Model loaded")
-        
     
-    def execute(self, dp: DataPackage[bytes], data_package_module: DataPackageModule) -> None:
+    def execute(self, dp: DataPackage[data.AudioData], dpc: DataPackageController, dpp: DataPackagePhase, dpm: DataPackageModule) -> None:
+        if not self._whisper_model:
+            raise Exception("Whisper model not loaded")
         if dp.data:
-            print(f"Processing {len(dp.data)} bytes of audio data")
+            print(f"Processing {len(dp.data.raw_audio_data)} bytes of audio data")
             if dp.data:
                 with tempfile.NamedTemporaryFile(prefix='tmp_audio_', suffix='.wav', dir=self.ram_disk_path, delete=True) as temp_file:
                     # Convert opus to wav
-                    opus_data = io.BytesIO(dp.data)
+                    opus_data = io.BytesIO(dp.data.raw_audio_data)
                     opus_audio = AudioSegment.from_file(opus_data, format="ogg", frame_rate=48000, channels=2, sample_width=2)
                     opus_audio.export(temp_file.name, format="wav")
                     
@@ -136,6 +141,7 @@ controllers = [
         name="CreateNsAudioPackage",
         phases=[
             PipelinePhase(
+                name="CreateNsAudioPackagePhase",
                 modules=[
                     CreateNsAudioPackage()
                 ]
@@ -144,11 +150,12 @@ controllers = [
     ),
 
     PipelineController(
-        mode=ControllerMode.ORDER_BY_SEQUENCE,
+        mode=ControllerMode.FIRST_WINS,
         max_workers=10,
         name="MainProcessingController",
         phases=[
             PipelinePhase(
+                name="WhisperPhase",
                 modules=[
                     Whisper()
                 ]
@@ -157,16 +164,22 @@ controllers = [
     )
 ]
 
-pipeline = Pipeline[bytes](controllers, name="WhisperPipeline")
+pipeline = Pipeline[data.AudioData](controllers, name="WhisperPipeline")
 
-def callback(processed_data: DataPackage[bytes]) -> None:
+def callback(dp: DataPackage[data.AudioData]) -> None:
     print(f"f")
     
-def exit_callback(dp: DataPackage[bytes]) -> None:
+def exit_callback(dp: DataPackage[data.AudioData]) -> None:
     print(f"Exit: dropped")
 
-def error_callback(dp: DataPackage[bytes]) -> None:
-    print(f"Error: {dp.errors[0]}")
+def overflow_callback(dp: DataPackage[data.AudioData]) -> None:
+    print(f"Overflow: {dp}")
+
+def outdated_callback(dp: DataPackage[data.AudioData]) -> None:
+    print(f"Outdated: {dp}")
+
+def error_callback(dp: DataPackage[data.AudioData]) -> None:
+    print(f"Error: {dp}")
 
 instance = pipeline.register_instance()
 
@@ -185,7 +198,9 @@ def simulate_live_audio_stream(file_path: str, sample_rate: int = 48000) -> None
         # Sleep to simulate real-time audio playback
         time.sleep(frame_duration)
 
-        pipeline.execute(frame.raw_data, instance, callback, exit_callback, error_callback)
+        audio_data: data.AudioData = data.AudioData(raw_audio_data=frame.raw_data)
+
+        pipeline.execute(audio_data, instance, callback=callback, exit_callback=exit_callback, overflow_callback=overflow_callback, outdated_callback=outdated_callback, error_callback=error_callback)
 
 if __name__ == "__main__":
     # Path to the Ogg file
