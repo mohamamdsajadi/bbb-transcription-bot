@@ -6,6 +6,9 @@ import os
 import pathlib
 from stream_pipeline.logger import PipelineLogger
 
+def get_logger():
+    return logging.getLogger("live_translation")
+
 def setup_logging():
     logger = logging.getLogger("live_translation")
     
@@ -128,7 +131,7 @@ class SimpleJSONFormatter(logging.Formatter):
     
     def format(self, record):
         # Initialize the log record with the message
-        log_record = {"message": record.getMessage()}
+        log_record = {"message": record.msg}
 
         # Include extra fields that are not part of the default log attributes
         extra = {key: value for key, value in record.__dict__.items() 
