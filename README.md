@@ -1,5 +1,30 @@
 # live-translation
 
+## Pipeline
+### Controller 1
+### Phase: Preparing Data
+- [ ] Create 10s audio clips
+- [ ] Add data to a AudioData class
+- [ ] Convert audio data to
+
+### Controller 2
+### Phase: Score Data
+- [ ] Score the audio data
+
+#### Phase: Detect speech
+- [ ] Route data depending on the score
+- [ ] Detect if someone is speaking VAD
+
+#### Phase Process audio data
+- [ ] Convert audio to Text
+
+#### Phase: Clean data
+- [ ] Remove text whis has a low confidence score
+- [ ] Add next word prediction to the text
+
+#### Phase: Translate
+- [ ] Translate text to another language
+
 ## Prepare the Environment
 ```bash
 python3 -m venv .venv

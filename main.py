@@ -1,20 +1,21 @@
 import io
+import json
 import tempfile
 import time
 from typing import List, Optional
 import whisper # type: ignore
 import torch
 from pydub import AudioSegment # type: ignore
-
-from extract_ogg import get_header_frames, split_ogg_data_into_frames, OggSFrame
-
 from stream_pipeline.grpc_server import GrpcServer
 from stream_pipeline.data_package import DataPackage, DataPackageController, DataPackagePhase, DataPackageModule
 from stream_pipeline.module_classes import Module, ExecutionModule, ModuleOptions
 from stream_pipeline.pipeline import Pipeline, ControllerMode, PipelinePhase, PipelineController
 
-
 import data
+from extract_ogg import get_header_frames, split_ogg_data_into_frames, OggSFrame
+import logger
+
+log = logger.setup_logging()
 
 def calculate_frame_duration(current_granule_position, previous_granule_position, sample_rate=48000):
     if previous_granule_position is None:
@@ -48,8 +49,6 @@ class CreateNsAudioPackage(ExecutionModule):
             if not self.header_frames:
                 self.header_buffer += frame.raw_data
                 id_header_frame, comment_header_frames = get_header_frames(self.header_buffer)
-                # print(f"ID Header Frame: {id_header_frame}")
-                # print(f"Comment Header Frames: {comment_header_frames}")
 
                 if id_header_frame and comment_header_frames:
                     self.header_frames = []
@@ -83,8 +82,6 @@ class CreateNsAudioPackage(ExecutionModule):
                     pop_frame_duration = calculate_frame_duration(next_frame_granule_position, pop_frame_granule_position, self.sample_rate)
                     self.current_audio_buffer_seconds -= pop_frame_duration
 
-                # print(f"Current audio buffer seconds: {self.current_audio_buffer_seconds}")
-
                 # Combine the audio buffer into a single audio package
                 n_seconds_of_audio: bytes = self.header_buffer + b''.join([frame.raw_data for frame in self.audio_data_buffer])
                 dp.data.raw_audio_data = n_seconds_of_audio
@@ -111,15 +108,15 @@ class Whisper(Module):
         self._whisper_model: Optional[whisper.Whisper] = None
         
     def init_module(self) -> None:
-        print(f"Loading model '{self.model}'...")
+        log.info(f"Loading model '{self.model}'...")
         self._whisper_model = whisper.load_model(self.model, download_root=self.models_path)
-        print("Model loaded")
+        log.info("Model loaded")
     
     def execute(self, dp: DataPackage[data.AudioData], dpc: DataPackageController, dpp: DataPackagePhase, dpm: DataPackageModule) -> None:
         if not self._whisper_model:
             raise Exception("Whisper model not loaded")
         if dp.data:
-            print(f"Processing {len(dp.data.raw_audio_data)} bytes of audio data")
+            log.info(f"Processing {len(dp.data.raw_audio_data)} bytes of audio data")
             if dp.data:
                 with tempfile.NamedTemporaryFile(prefix='tmp_audio_', suffix='.wav', dir=self.ram_disk_path, delete=True) as temp_file:
                     # Convert opus to wav
@@ -130,9 +127,7 @@ class Whisper(Module):
                     # Transcribe audio data
                     result = self._whisper_model.transcribe(temp_file.name, fp16=torch.cuda.is_available(), task=self.task)
                     text = result['text'].strip()
-                    print(f"Transcribed text: {text}")
-
-
+                    log.info(f"Transcribed text: {text}")
 
 controllers = [
     PipelineController(
@@ -167,19 +162,19 @@ controllers = [
 pipeline = Pipeline[data.AudioData](controllers, name="WhisperPipeline")
 
 def callback(dp: DataPackage[data.AudioData]) -> None:
-    print(f"f")
+    log.info("Callback", extra={"data_package": dp})
     
 def exit_callback(dp: DataPackage[data.AudioData]) -> None:
-    print(f"Exit: dropped")
+    log.info("Exit", extra={"data_package": dp})
 
 def overflow_callback(dp: DataPackage[data.AudioData]) -> None:
-    print(f"Overflow: {dp}")
+    log.info("Overflow", extra={"data_package": dp})
 
 def outdated_callback(dp: DataPackage[data.AudioData]) -> None:
-    print(f"Outdated: {dp}")
+    log.info("Outdated", extra={"data_package": dp})
 
 def error_callback(dp: DataPackage[data.AudioData]) -> None:
-    print(f"Error: {dp}")
+    log.error("Pipeline error", extra={"data_package": dp})
 
 instance = pipeline.register_instance()
 
@@ -210,4 +205,4 @@ if __name__ == "__main__":
     end_time: float = time.time()
 
     execution_time: float = end_time - start_time
-    print(f"Execution time: {execution_time} seconds")
+    log.info(f"Execution time: {execution_time} seconds")
