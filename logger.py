@@ -61,6 +61,32 @@ LOG_RECORD_BUILTIN_ATTRS = {
     "taskName",
 }
 
+def truncate_dict(d, max_length=0):
+    if isinstance(d, dict):
+        truncated = {}
+        for key, value in d.items():
+            truncated[key] = truncate_dict(value, max_length)
+        return truncated
+    elif isinstance(d, (list, tuple, set)):
+        return type(d)(truncate_dict(item, max_length) for item in d)
+    elif hasattr(d, 'to_dict'):
+        return truncate_dict(d.to_dict(), max_length)
+    else:
+        return truncate_value(d, max_length)
+
+def truncate_value(value, max_length=0):
+    if isinstance(value, BaseException):
+        return str(value)  # Simplified for exceptions
+    elif hasattr(value, 'to_dict'):
+        return value.to_dict()
+    elif isinstance(value, (dict, list, tuple, set)):
+        return truncate_dict(value, max_length)
+    else:
+        value_str = str(value)
+        if max_length > 0 and len(value_str) > max_length:
+            return value_str[:max_length] + '...'
+        return value_str
+
 class MyJSONFormatter(logging.Formatter):
     def __init__(self, datefmt='%Y-%m-%dT%H:%M:%S%z', max_length=0, fmt_keys=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -92,31 +118,37 @@ class MyJSONFormatter(logging.Formatter):
                     log_record['extra'] = extra_set
 
         # Truncate and serialize the final log record
-        truncated = self.truncate_dict(log_record, self.max_length)
+        truncated = truncate_dict(log_record, self.max_length)
         return json.dumps(truncated)
+        
+class SimpleJSONFormatter(logging.Formatter):
+    def __init__(self, max_length=64, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.max_length = max_length
+    
+    def format(self, record):
+        # Initialize the log record with the message
+        log_record = {"message": record.getMessage()}
 
-    def truncate_dict(self, d, max_length=0):
-        if isinstance(d, dict):
-            truncated = {}
-            for key, value in d.items():
-                truncated[key] = self.truncate_dict(value, max_length)
-            return truncated
-        elif isinstance(d, (list, tuple, set)):
-            return type(d)(self.truncate_dict(item, max_length) for item in d)
-        elif hasattr(d, 'to_dict'):
-            return self.truncate_dict(d.to_dict(), max_length)
-        else:
-            return self.truncate_value(d, max_length)
+        # Include extra fields that are not part of the default log attributes
+        extra = {key: value for key, value in record.__dict__.items() 
+                 if key not in LOG_RECORD_BUILTIN_ATTRS and not key.startswith('_')}
+        
+        for key, value in extra.items():
+            if hasattr(value, 'to_dict'):
+                extra[key] = value.to_dict()
+            else:
+                # try read json to dict
+                try:
+                    extra[key] = json.loads(value)
+                except:
+                    pass
+            
+        
+        if extra:
+            log_record["extra"] = extra
+            
+        log_record = truncate_dict(log_record, self.max_length)
 
-    def truncate_value(self, value, max_length=0):
-        if isinstance(value, BaseException):
-            return str(value)  # Simplified for exceptions
-        elif hasattr(value, 'to_dict'):
-            return value.to_dict()
-        elif isinstance(value, (dict, list, tuple, set)):
-            return self.truncate_dict(value, max_length)
-        else:
-            value_str = str(value)
-            if max_length > 0 and len(value_str) > max_length:
-                return value_str[:max_length] + '...'
-            return value_str
+        # Convert to JSON
+        return json.dumps(log_record, default=str, indent=4)
