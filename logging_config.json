@@ -49,9 +49,7 @@
        },
        "": {
            "level": "DEBUG",
-           "handlers": [
-               "file"
-           ]
+           "handlers": []
        }
    }
 }
