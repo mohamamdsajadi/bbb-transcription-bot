@@ -252,7 +252,7 @@ def get_header_frames(byte_data: bytes) -> Tuple[Optional[OggSFrame], Optional[L
 
     return id_header_frame, comment_header_frames
 
-def calculate_frame_duration(current_granule_position, previous_granule_position, sample_rate=48000):
+def calculate_frame_duration(current_granule_position: int, previous_granule_position: Optional[int], sample_rate: int = 48000) -> float:
     if previous_granule_position is None:
         return 0.0  # Default value for the first frame
     samples = current_granule_position - previous_granule_position

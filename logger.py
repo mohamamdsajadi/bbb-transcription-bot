@@ -1,28 +1,30 @@
 import atexit
 import json
+import logging
 import logging.config
 import logging.handlers
 import os
 import pathlib
+from typing import Any, Dict, Optional, Union
 from stream_pipeline.logger import PipelineLogger
 
-def get_logger():
+def get_logger() -> logging.Logger:
     return logging.getLogger("live_translation")
 
-def setup_logging():
+def setup_logging() -> logging.Logger:
     logger = logging.getLogger("live_translation")
     
-    log_directory = "logs"
+    log_directory: str = "logs"
     if not os.path.exists(log_directory):
         os.makedirs(log_directory)
     
-    config_file = pathlib.Path("logging_config.json")
+    config_file: pathlib.Path = pathlib.Path("logging_config.json")
     with open(config_file) as f_in:
-        logging_config = json.load(f_in)
+        logging_config: Dict[str, Any] = json.load(f_in)
 
     logging.config.dictConfig(logging_config)
         
-    pipeline_logger = PipelineLogger()
+    pipeline_logger: PipelineLogger = PipelineLogger()
     pipeline_logger.set_debug(True)
     pipeline_logger.set_info(logger.info)
     pipeline_logger.set_warning(logger.warning)
@@ -36,8 +38,7 @@ def setup_logging():
     return logger
 
 
-
-LOG_RECORD_BUILTIN_ATTRS = {
+LOG_RECORD_BUILTIN_ATTRS: set[str] = {
     "args",
     "asctime",
     "created",
@@ -64,9 +65,9 @@ LOG_RECORD_BUILTIN_ATTRS = {
     "taskName",
 }
 
-def truncate_dict(d, max_length=0):
+def truncate_dict(d: Any, max_length: int = 0) -> Any:
     if isinstance(d, dict):
-        truncated = {}
+        truncated: dict = {}
         for key, value in d.items():
             truncated[key] = truncate_dict(value, max_length)
         return truncated
@@ -77,7 +78,7 @@ def truncate_dict(d, max_length=0):
     else:
         return truncate_value(d, max_length)
 
-def truncate_value(value, max_length=0):
+def truncate_value(value: Any, max_length: int = 0) -> Any:
     if isinstance(value, BaseException):
         return str(value)  # Simplified for exceptions
     elif hasattr(value, 'to_dict'):
@@ -85,21 +86,28 @@ def truncate_value(value, max_length=0):
     elif isinstance(value, (dict, list, tuple, set)):
         return truncate_dict(value, max_length)
     else:
-        value_str = str(value)
+        value_str: str = str(value)
         if max_length > 0 and len(value_str) > max_length:
             return value_str[:max_length] + '...'
         return value_str
 
 class MyJSONFormatter(logging.Formatter):
-    def __init__(self, datefmt='%Y-%m-%dT%H:%M:%S%z', max_length=0, fmt_keys=None, *args, **kwargs):
+    def __init__(
+        self, 
+        datefmt: str = '%Y-%m-%dT%H:%M:%S%z', 
+        max_length: int = 0, 
+        fmt_keys: Optional[Dict[str, str]] = None, 
+        *args: Any, 
+        **kwargs: Any
+    ) -> None:
         super().__init__(*args, **kwargs)
-        self.datefmt = datefmt
-        self.max_length = max_length
-        self.fmt_keys = fmt_keys or {}
+        self.datefmt: str = datefmt
+        self.max_length: int = max_length
+        self.fmt_keys: Dict[str, str] = fmt_keys or {}
 
-    def format(self, record):
+    def format(self, record: logging.LogRecord) -> str:
         # Initialize an empty log record
-        log_record = {}
+        log_record: Dict[str, Any] = {}
 
         for key, value in self.fmt_keys.items():  # Use .items() to iterate over key-value pairs
             if value not in LOG_RECORD_BUILTIN_ATTRS:
@@ -112,42 +120,43 @@ class MyJSONFormatter(logging.Formatter):
             log_record[key] = getattr(record, value, None)
 
         # Add extra attributes
-        # Add all atrtibutes which are not in the LOG_RECORD_BUILTIN_ATTRS set
+        # Add all attributes which are not in the LOG_RECORD_BUILTIN_ATTRS set
         if 'extra' in self.fmt_keys.values():
             for key, value in record.__dict__.items():
                 if key not in LOG_RECORD_BUILTIN_ATTRS:
-                    extra_set = {}
+                    extra_set: Dict[str, Any] = {}
                     extra_set[key] = value
                     log_record['extra'] = extra_set
 
         # Truncate and serialize the final log record
-        truncated = truncate_dict(log_record, self.max_length)
+        truncated: Dict[str, Any] = truncate_dict(log_record, self.max_length)
         return json.dumps(truncated)
         
 class SimpleJSONFormatter(logging.Formatter):
-    def __init__(self, max_length=64, *args, **kwargs):
+    def __init__(self, max_length: int = 64, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self.max_length = max_length
+        self.max_length: int = max_length
     
-    def format(self, record):
+    def format(self, record: logging.LogRecord) -> str:
         # Initialize the log record with the message
-        log_record = {"message": record.msg}
+        log_record: Dict[str, Any] = {"message": record.msg}
 
         # Include extra fields that are not part of the default log attributes
-        extra = {key: value for key, value in record.__dict__.items() 
-                 if key not in LOG_RECORD_BUILTIN_ATTRS and not key.startswith('_')}
+        extra: Dict[str, Any] = {
+            key: value for key, value in record.__dict__.items() 
+            if key not in LOG_RECORD_BUILTIN_ATTRS and not key.startswith('_')
+        }
         
         for key, value in extra.items():
             if hasattr(value, 'to_dict'):
                 extra[key] = value.to_dict()
             else:
-                # try read json to dict
+                # try to read json to dict
                 try:
                     extra[key] = json.loads(value)
-                except:
+                except (TypeError, ValueError):
                     pass
             
-        
         if extra:
             log_record["extra"] = extra
             
