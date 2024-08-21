@@ -51,4 +51,4 @@ class Whisper(Module):
                     # Transcribe audio data
                     result = self._whisper_model.transcribe(temp_file.name, fp16=torch.cuda.is_available(), task=self.task)
                     text = result['text'].strip()
-                    log.info(f"Transcribed text: {text}")
+                    dp.data.text = text

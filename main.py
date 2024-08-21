@@ -49,7 +49,8 @@ controllers = [
 pipeline = Pipeline[data.AudioData](controllers, name="WhisperPipeline")
 
 def callback(dp: DataPackage[data.AudioData]) -> None:
-    log.info("Callback")
+    if dp.data:
+        log.info(f"{dp.data.text}")
     
 def exit_callback(dp: DataPackage[data.AudioData]) -> None:
     log.info("Exit", extra={"data_package": dp})
