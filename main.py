@@ -1,3 +1,4 @@
+# main.py
 import time
 from typing import List, Optional
 
@@ -13,6 +14,7 @@ import data
 from extract_ogg import get_header_frames, split_ogg_data_into_frames, OggSFrame, calculate_frame_duration
 import logger
 from m_stt_whisper import Whisper
+from asr_whisperx import WhisperX_align, WhisperX_load_audio, WhisperX_transcribe
 
 log = logger.setup_logging()
 
@@ -33,13 +35,16 @@ controllers = [
 
     PipelineController(
         mode=ControllerMode.FIRST_WINS,
-        max_workers=10,
+        max_workers=1,
         name="MainProcessingController",
         phases=[
             PipelinePhase(
                 name="WhisperPhase",
                 modules=[
-                    Whisper()
+                    # Whisper()
+                    WhisperX_load_audio(),
+                    WhisperX_transcribe(),
+                    WhisperX_align()
                 ]
             )
         ]
@@ -50,7 +55,7 @@ pipeline = Pipeline[data.AudioData](controllers, name="WhisperPipeline")
 
 def callback(dp: DataPackage[data.AudioData]) -> None:
     if dp.data:
-        log.info(f"{dp.data.text}")
+        log.info(f"{dp.data.aligned_text}")
     
 def exit_callback(dp: DataPackage[data.AudioData]) -> None:
     log.info("Exit", extra={"data_package": dp})

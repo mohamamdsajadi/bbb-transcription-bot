@@ -1,3 +1,4 @@
+# m_stt_whisper.py
 from typing import Optional
 import whisper # type: ignore
 import torch
@@ -51,4 +52,4 @@ class Whisper(Module):
                     # Transcribe audio data
                     result = self._whisper_model.transcribe(temp_file.name, fp16=torch.cuda.is_available(), task=self.task)
                     text = result['text'].strip()
-                    dp.data.text = text
+                    dp.data.transcribed_text = text
