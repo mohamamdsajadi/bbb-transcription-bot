@@ -103,14 +103,14 @@ class WhisperX_transcribe(Module):
         self.model = whisperx.load_model(self.model_name, self.device, compute_type=self.compute_type)
         log.info("Model loaded")
 
-    def execute(
-        self, dp: DataPackage[data.AudioData], dpc: DataPackageController, dpp: DataPackagePhase, dpm: DataPackageModule
-    ) -> None:
+    def execute(self, dp: DataPackage[data.AudioData], dpc: DataPackageController, dpp: DataPackagePhase, dpm: DataPackageModule) -> None:
         if not self.model:
             raise Exception("Whisper model not loaded")
-        if dp.data:
-            result: Dict[str, Any] = self.model.transcribe(dp.data.audio_data, batch_size=self.batch_size)
-            dp.data.transcribed_text = result
+        if not dp.data:
+            raise Exception("No audio data found")
+            
+        result: Dict[str, Any] = self.model.transcribe(dp.data.audio_data, batch_size=self.batch_size)
+        dp.data.transcribed_text = result
 
 
 class WhisperX_align(Module):
@@ -131,17 +131,47 @@ class WhisperX_align(Module):
         self.model, self.metadata = whisperx.load_align_model(language_code="en", device=self.device)
         log.info("Align model loaded")
 
-    def execute(
-        self, dp: DataPackage[data.AudioData], dpc: DataPackageController, dpp: DataPackagePhase, dpm: DataPackageModule
-    ) -> None:
+    def execute(self, dp: DataPackage[data.AudioData], dpc: DataPackageController, dpp: DataPackagePhase, dpm: DataPackageModule) -> None:
         if not self.model:
             raise Exception("Whisper align model not loaded")
-        if dp.data:
-            if dp.data:
-                metadata = self.metadata.copy() if self.metadata else {}
-                metadata["language"] = dp.data.transcribed_text["language"] if dp.data.transcribed_text else "en"
-                segments = dp.data.transcribed_text["segments"] if dp.data.transcribed_text else []
-                result: Dict[str, Any] = whisperx.align(
-                    segments, self.model, metadata, dp.data.audio_data, self.device, return_char_alignments=False
-                )
-                dp.data.aligned_text = result
+        if not dp.data:
+            raise Exception("No audio data found")
+            
+        metadata = self.metadata.copy() if self.metadata else {}
+        metadata["language"] = dp.data.transcribed_text["language"] if dp.data.transcribed_text else "en"
+        segments = dp.data.transcribed_text["segments"] if dp.data.transcribed_text else []
+        result: Dict[str, Any] = whisperx.align(
+            segments, self.model, metadata, dp.data.audio_data, self.device, return_char_alignments=False
+        )
+        dp.data.transcribed_text = result
+
+
+class Clean_Whisper_data(Module):
+    def __init__(self) -> None:
+        super().__init__(
+            ModuleOptions(
+                use_mutex=False,
+                timeout=5,
+            ),
+            name="Clean_Whisper_data"
+        )
+
+    def init_module(self) -> None:
+        pass
+
+    def execute(self, dp: DataPackage[data.AudioData], dpc: DataPackageController, dpp: DataPackagePhase, dpm: DataPackageModule) -> None:
+        if not dp.data or not dp.data.transcribed_text:
+            raise Exception("No transcribed text data found")
+        
+        complete_text = ""
+        
+        # Add all segments together
+        for segment in dp.data.transcribed_text["segments"]:
+            print(segment["text"])
+            complete_text += str(segment["text"]) + " "
+            
+        
+        dp.data.transcribed_text["text"] = complete_text
+            
+        # Split the text into words
+        dp.data.transcribed_text["words"] = complete_text.split()

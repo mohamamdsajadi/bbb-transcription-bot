@@ -8,5 +8,4 @@ import numpy as np
 class AudioData:
     raw_audio_data: bytes
     audio_data: Optional[np.ndarray] = None
-    transcribed_text: Optional[Dict[str, Union[str, Any]]] = None
-    aligned_text: Optional[Dict[str, Union[str, Any]]] = None
+    transcribed_text: Optional[Dict[str, Any]] = None
