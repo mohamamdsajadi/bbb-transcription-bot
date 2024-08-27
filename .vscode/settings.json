@@ -1,8 +1,5 @@
 {
-    "python.pythonPath": "${workspaceFolder}/.venv/bin/python",
-    "python.venvPath": "${workspaceFolder}/.venv",
     "python.terminal.activateEnvironment": true,
     "python.terminal.activateEnvInCurrentTerminal": true,
-    "python.envFile": "${workspaceFolder}/.venv/bin/activate",
     "mypy.dmypyExecutable": "${workspaceFolder}/.venv/bin/dmypy"
 }
