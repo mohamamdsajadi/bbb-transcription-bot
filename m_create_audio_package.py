@@ -1,5 +1,5 @@
 from typing import List, Optional
-from stream_pipeline.data_package import DataPackage, DataPackageController, DataPackagePhase, DataPackageModule
+from stream_pipeline.data_package import DataPackage, DataPackageController, DataPackagePhase, DataPackageModule, Status
 from stream_pipeline.module_classes import Module, ExecutionModule, ModuleOptions
 
 import data
@@ -19,6 +19,7 @@ class CreateNsAudioPackage(ExecutionModule):
         self.audio_data_buffer: List[OggSFrame] = []
         self.sample_rate: int = 48000
         self.last_n_seconds: int = 10
+        self.min_n_seconds: int = 1
         self.current_audio_buffer_seconds: float = 0
 
     
@@ -40,6 +41,7 @@ class CreateNsAudioPackage(ExecutionModule):
                     self.header_frames.extend(comment_header_frames)
                 else:
                     dpm.message = "Could not find the header frames"
+                    dpm.status = Status.EXIT
                     return
 
             
@@ -57,7 +59,7 @@ class CreateNsAudioPackage(ExecutionModule):
             self.current_audio_buffer_seconds += frame_duration
 
             # Every second, process the last n seconds of audio
-            if frame_duration > 0.0:
+            if frame_duration > 0.0 and self.current_audio_buffer_seconds >= self.min_n_seconds:
                 if self.current_audio_buffer_seconds >= self.last_n_seconds:
                     # pop audio last frame from buffer
                     pop_frame = self.audio_data_buffer.pop(0)
@@ -69,3 +71,6 @@ class CreateNsAudioPackage(ExecutionModule):
                 # Combine the audio buffer into a single audio package
                 n_seconds_of_audio: bytes = self.header_buffer + b''.join([frame.raw_data for frame in self.audio_data_buffer])
                 dp.data.raw_audio_data = n_seconds_of_audio
+            else:
+                dpm.status = Status.EXIT
+                dpm.message = "Not enough audio data to create a package"

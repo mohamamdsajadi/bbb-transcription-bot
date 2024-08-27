@@ -137,7 +137,6 @@ class WhisperX_align(Module):
         if not self.model:
             raise Exception("Whisper align model not loaded")
         if dp.data:
-            log.info(f"Processing {len(dp.data.raw_audio_data)} bytes of audio data")
             if dp.data:
                 metadata = self.metadata.copy() if self.metadata else {}
                 metadata["language"] = dp.data.transcribed_text["language"] if dp.data.transcribed_text else "en"
