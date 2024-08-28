@@ -14,7 +14,7 @@ import data
 from extract_ogg import get_header_frames, split_ogg_data_into_frames, OggSFrame, calculate_frame_duration
 import logger
 from m_stt_whisper import Whisper
-from asr_whisperx import Clean_Whisper_data, WhisperX_align, WhisperX_load_audio, WhisperX_transcribe
+from asr_whisperx import Clean_Whisper_data, Local_Agreement, WhisperX_align, WhisperX_load_audio, WhisperX_transcribe
 
 log = logger.setup_logging()
 
@@ -45,7 +45,8 @@ controllers = [
                     WhisperX_load_audio(),
                     WhisperX_transcribe(),
                     WhisperX_align(),
-                    Clean_Whisper_data()
+                    Clean_Whisper_data(),
+                    Local_Agreement()
                 ]
             )
         ]
@@ -55,8 +56,10 @@ controllers = [
 pipeline = Pipeline[data.AudioData](controllers, name="WhisperPipeline")
 
 def callback(dp: DataPackage[data.AudioData]) -> None:
-    if dp.data:
-        log.info(f"{dp.data.transcribed_text}")
+    if dp.data and dp.data.transcribed_text:
+        # log.info(f"Text: {dp.data.transcribed_text['words']}")
+        log.info(f"{dp.data.transcribed_text['confirmed_words']} +++ {dp.data.transcribed_text['unconfirmed_words']}")
+    pass
     
 def exit_callback(dp: DataPackage[data.AudioData]) -> None:
     log.info("Exit", extra={"data_package": dp})
