@@ -1,4 +1,5 @@
-from typing import List
+import time
+from typing import List, Tuple
 from whisperx.vad import load_vad_model, merge_chunks
 from whisperx.audio import load_audio, log_mel_spectrogram  # Import log_mel_spectrogram to convert audio to mel spectrogram
 import faster_whisper
@@ -68,31 +69,70 @@ class WhisperModel(faster_whisper.WhisperModel):
         features = faster_whisper.transcribe.get_ctranslate2_storage(features)
 
         return self.model.encode(features, to_cpu=to_cpu)
+    
+    def detect_language(self, audio: np.ndarray, sample_rate: int, chunk_length: int) -> Tuple[str, float]:
+        n_samples = chunk_length * sample_rate  # 480000 samples in a 30-second chunk
+        
+        # Set number of mel filters (n_mels) to 128, as expected by the model
+        model_n_mels = 128
+        
+        # Compute the log mel spectrogram for the input audio with the correct number of mel filters
+        segment = log_mel_spectrogram(
+            audio[:n_samples],
+            n_mels=model_n_mels,
+            padding=0 if audio.shape[0] >= n_samples else n_samples - audio.shape[0]
+        )
+        
+        # Ensure the segment is a NumPy array
+        if not isinstance(segment, np.ndarray):
+            segment = np.array(segment)
+
+        # Add a batch dimension to make it 3D: [batch_size, num_mels, num_frames]
+        segment = np.expand_dims(segment, axis=0)
+
+        # Convert the spectrogram to a ctranslate2.StorageView
+        segment_storage_view = ctranslate2.StorageView.from_array(segment.astype(np.float32))
+
+        # Encode the segment using the model's encoder
+        encoder_output = self.model.encode(segment_storage_view, to_cpu=False)
+        
+        # Detect language from the encoder output
+        results = self.model.detect_language(encoder_output)
+        language_token, language_probability = results[0][0]
+        language = language_token[2:-2]
+        
+        print(f"Detected language: {language} ({language_probability:.2f})")
+        return language, language_probability
+
 
 # Schritt 1: VAD-Modell laden und konfigurieren
 device = "cuda"  # oder "cpu" je nach Verfügbarkeit
 vad_model = load_vad_model(device=device)
 
+# Schritt 2: Whisper-Modell laden und konfigurieren
+model_size = "large-v3"
+model = WhisperModel(model_size, device=device, compute_type="float16")
+
+start = time.time()
+
 # Eingabe-Audiodatei
 audio_file_path = "audio/audio.mp3"
 audio_file = {"uri": "audio_sample", "audio": audio_file_path}
 
-# Schritt 2: Sprachaktivitätserkennung durchführen
+# Schritt 3: Sprachaktivitätserkennung durchführen
 vad_result = vad_model.apply(audio_file)
 # Zusammenführung von VAD-Segmenten, falls notwendig
 merged_segments = merge_chunks(vad_result, chunk_size=10.0)  # Optional: Passen Sie die chunk_size an
 
-# Schritt 3: Whisper-Modell laden und konfigurieren
-model_size = "large-v3"
-model = WhisperModel(model_size, device=device, compute_type="float16")
-
-# Erstelle einen korrekten Tokenizer
-language = "en"  # oder die gewünschte Sprache
-task = "transcribe"
-tokenizer = faster_whisper.tokenizer.Tokenizer(model.hf_tokenizer, model.model.is_multilingual, task=task, language=language)
-
 # Extrahiere das Audio-Segment basierend auf den VAD-Ergebnissen
 segment_audio = load_audio(audio_file_path, SAMPLE_RATE)  # Laden Sie die gesamte Audiodatei
+
+# Detect language with confidence threshold
+language, confidence = model.detect_language(segment_audio, SAMPLE_RATE, 30)
+
+# Tokenizer für die Transkription initialisieren
+task = "transcribe"
+tokenizer = faster_whisper.tokenizer.Tokenizer(model.hf_tokenizer, model.model.is_multilingual, task=task, language=language)
 
 default_asr_options = {
     "beam_size": 5,
@@ -173,3 +213,6 @@ for idx, segment in enumerate(merged_segments):
         # Leere die batched_segments für den nächsten Batch
         batched_segments = []
         max_length = 0  # Reset the maximum length for the next batch
+
+end = time.time()
+print(f"Time taken: {end - start} seconds")
