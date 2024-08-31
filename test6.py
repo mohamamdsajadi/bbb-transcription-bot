@@ -1,10 +1,10 @@
 import time
 from typing import List, Tuple, Dict, Any
-from whisperx.vad import load_vad_model, merge_chunks # type: ignore
+from whisperx.vad import load_vad_model, merge_chunks  # type: ignore
 from whisperx.audio import load_audio, log_mel_spectrogram  # type: ignore
-import faster_whisper # type: ignore
+import faster_whisper  # type: ignore
 import numpy as np
-import ctranslate2 # type: ignore
+import ctranslate2  # type: ignore
 
 SAMPLE_RATE = 16000
 
@@ -62,10 +62,7 @@ class WhisperModel(faster_whisper.WhisperModel):
         return text
 
     def encode(self, features: np.ndarray) -> ctranslate2.StorageView:
-        # When the model is running on multiple GPUs, the encoder output should be moved
-        # to the CPU since we don't know which GPU will handle the next job.
         to_cpu: bool = self.model.device == "cuda" and len(self.model.device_index) > 1
-        # unsqueeze if batch size = 1
         if len(features.shape) == 2:
             features = np.expand_dims(features, 0)
         new_features: ctranslate2.StorageView = faster_whisper.transcribe.get_ctranslate2_storage(features)
@@ -75,30 +72,23 @@ class WhisperModel(faster_whisper.WhisperModel):
     def detect_language(self, audio: np.ndarray, sample_rate: int, chunk_length: int) -> Tuple[str, float]:
         n_samples: int = chunk_length * sample_rate  # 480000 samples in a 30-second chunk
         
-        # Set number of mel filters (n_mels) to 128, as expected by the model
         model_n_mels: int = 128
         
-        # Compute the log mel spectrogram for the input audio with the correct number of mel filters
         segment: np.ndarray = log_mel_spectrogram(
             audio[:n_samples],
             n_mels=model_n_mels,
             padding=0 if audio.shape[0] >= n_samples else n_samples - audio.shape[0]
         )
         
-        # Ensure the segment is a NumPy array
         if not isinstance(segment, np.ndarray):
             segment = np.array(segment)
 
-        # Add a batch dimension to make it 3D: [batch_size, num_mels, num_frames]
         segment = np.expand_dims(segment, axis=0)
 
-        # Convert the spectrogram to a ctranslate2.StorageView
         segment_storage_view: ctranslate2.StorageView = ctranslate2.StorageView.from_array(segment.astype(np.float32))
 
-        # Encode the segment using the model's encoder
         encoder_output: ctranslate2.StorageView = self.model.encode(segment_storage_view, to_cpu=False)
         
-        # Detect language from the encoder output
         results: List[List[Tuple[str, float]]] = self.model.detect_language(encoder_output)
         language_token, language_probability = results[0][0]
         language: str = language_token[2:-2]
@@ -107,32 +97,32 @@ class WhisperModel(faster_whisper.WhisperModel):
         return language, language_probability
 
 
-# Schritt 1: VAD-Modell laden und konfigurieren
-device: str = "cuda"  # oder "cpu" je nach Verfügbarkeit
+# Step 1: Load and configure VAD model
+device: str = "cuda"  # or "cpu" depending on availability
 vad_model = load_vad_model(device=device)
 
-# Schritt 2: Whisper-Modell laden und konfigurieren
+# Step 2: Load and configure Whisper model
 model_size: str = "large-v3"
 model: WhisperModel = WhisperModel(model_size, device=device, compute_type="float16")
 
 start: float = time.time()
 
-# Eingabe-Audiodatei
+# Input audio file
 audio_file_path: str = "audio/audio.mp3"
 audio_file: Dict[str, str] = {"uri": "audio_sample", "audio": audio_file_path}
 
-# Schritt 3: Sprachaktivitätserkennung durchführen
+# Step 3: Perform voice activity detection
 vad_result: Any = vad_model.apply(audio_file)
-# Zusammenführung von VAD-Segmenten, falls notwendig
-merged_segments: List[Dict[str, float]] = merge_chunks(vad_result, chunk_size=10.0)  # Optional: Passen Sie die chunk_size an
+# Merge VAD segments if necessary
+merged_segments: List[Dict[str, float]] = merge_chunks(vad_result, chunk_size=10.0)  # Optional: adjust chunk_size
 
-# Extrahiere das Audio-Segment basierend auf den VAD-Ergebnissen
-segment_audio: np.ndarray = load_audio(audio_file_path, SAMPLE_RATE)  # Laden Sie die gesamte Audiodatei
+# Extract the audio segment based on VAD results
+segment_audio: np.ndarray = load_audio(audio_file_path, SAMPLE_RATE)  # Load the entire audio file
 
 # Detect language with confidence threshold
 language, confidence = model.detect_language(segment_audio, SAMPLE_RATE, 30)
 
-# Tokenizer für die Transkription initialisieren
+# Initialize tokenizer for transcription
 task: str = "transcribe"
 tokenizer: faster_whisper.tokenizer.Tokenizer = faster_whisper.tokenizer.Tokenizer(model.hf_tokenizer, model.model.is_multilingual, task=task, language=language)
 
@@ -166,54 +156,64 @@ default_asr_options: Dict[str, Any] = {
 
 asr_options: faster_whisper.transcribe.TranscriptionOptions = faster_whisper.transcribe.TranscriptionOptions(**default_asr_options)
 
-# Batch-Größe festlegen
-batch_size: int = 32  # Beispielwert; kann angepasst werden
+# Set batch size
+batch_size: int = 32  # Example value; can be adjusted
 
-# Schritt 4: Transkription der VAD-basierten Sprachsegmente in Batches
+# Step 4: Transcribe VAD-based voice segments in batches
 batched_segments: List[np.ndarray] = []
+batched_times: List[Tuple[float, float]] = []  # To keep track of start and end times for each segment
 max_length: int = 0
 
-# Berechnen Sie die maximale Länge der Segmente
+def time_to_str(time: float) -> str:
+    minutes: int = int(time / 60)
+    seconds: float = time % 60
+    return f"{minutes:02d}:{seconds:05.2f}"
+
+# Calculate the maximum length of segments
 for idx, segment in enumerate(merged_segments):
     start_time: float = segment['start']
     end_time: float = segment['end']
 
-    # Extrahiere nur das relevante Segment basierend auf den Start- und Endzeiten
+    # Extract only the relevant segment based on start and end times
     start_sample: int = int(start_time * SAMPLE_RATE)
     end_sample: int = int(end_time * SAMPLE_RATE)
     audio_segment: np.ndarray = segment_audio[start_sample:end_sample]
 
-    # Berechne die maximale Länge der Segmente
+    # Calculate the maximum length of the segments
     max_length = max(max_length, len(audio_segment))
     batched_segments.append(audio_segment)
+    batched_times.append((start_time, end_time))
 
-    # Transkribiere die Segmente in Batches
+    # Transcribe the segments in batches
     if len(batched_segments) == batch_size or idx == len(merged_segments) - 1:
-        # Konvertiere die Segmente in Mel-Spektrogramme und padding alle Segmente auf die gleiche Länge
+        # Convert segments to mel-spectrograms and pad all segments to the same length
         mel_segments: List[np.ndarray] = [log_mel_spectrogram(seg, padding=0, n_mels=128) for seg in batched_segments]
 
-        # Finden Sie die maximale Anzahl von Frames (Zeitschritte) in den Mel-Spektrogrammen
+        # Find the maximum number of frames (time steps) in the mel-spectrograms
         max_frames: int = max(mel.shape[1] for mel in mel_segments)
 
-        # Pad jedes Mel-Spektrogramm auf die maximale Frame-Länge
+        # Pad each mel-spectrogram to the maximum frame length
         padded_mel_segments: List[np.ndarray] = [np.pad(mel, ((0, 0), (0, max_frames - mel.shape[1])), mode='constant') for mel in mel_segments]
 
-        # Konvertiere die gepaddeten Mel-Segmente in ein numpy-Array
-        mel_segments_array: np.ndarray = np.array(padded_mel_segments, dtype=np.float32)  # Verwenden Sie float32 für Kompatibilität
+        # Convert padded mel segments to a numpy array
+        mel_segments_array: np.ndarray = np.array(padded_mel_segments, dtype=np.float32)  # Use float32 for compatibility
 
-        # Verwende die generate_segment_batched Methode zur Transkription
+        # Use the generate_segment_batched method for transcription
         transcriptions: List[str] = model.generate_segment_batched(
             features=mel_segments_array,
-            tokenizer=tokenizer,  # Verwenden Sie den richtigen Tokenizer
+            tokenizer=tokenizer,  # Use the correct tokenizer
             options=asr_options,
         )
 
-        # Ausgabe der Ergebnisse
+        # Output the results
         for i, text in enumerate(transcriptions):
-            print(f"Batch {i + 1}: {text}")
+            start_time_str = time_to_str(batched_times[i][0])
+            end_time_str = time_to_str(batched_times[i][1])
+            print(f"Batch {i + 1} [{start_time_str}->{end_time_str}]: {text}")
 
-        # Leere die batched_segments für den nächsten Batch
+        # Clear batched_segments and batched_times for the next batch
         batched_segments = []
+        batched_times = []
         max_length = 0  # Reset the maximum length for the next batch
 
 end: float = time.time()
