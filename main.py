@@ -9,16 +9,55 @@ from stream_pipeline.data_package import DataPackage, DataPackageController, Dat
 from stream_pipeline.module_classes import Module, ExecutionModule, ModuleOptions
 from stream_pipeline.pipeline import Pipeline, ControllerMode, PipelinePhase, PipelineController
 
-from m_create_audio_package import CreateNsAudioPackage
+# from m_create_audio_package import CreateNsAudioPackage
 import data
 from extract_ogg import get_header_frames, split_ogg_data_into_frames, OggSFrame, calculate_frame_duration
 import logger
-from m_stt_whisper import Whisper
-from asr_whisperx import Clean_Whisper_data, Local_Agreement, WhisperX_align, WhisperX_load_audio, WhisperX_transcribe
+# from m_stt_whisper import Whisper
+# from asr_whisperx import Clean_Whisper_data, Local_Agreement, WhisperX_align, WhisperX_load_audio, WhisperX_transcribe
 from next_word import Next_Word_Prediction
+
+from asr_faster_whisper import CreateNsAudioPackage, Load_audio, VAD, Faster_Whisper_transcribe, Local_Agreement
 
 log = logger.setup_logging()
 
+# controllers = [
+#     PipelineController(
+#         mode=ControllerMode.NOT_PARALLEL,
+#         max_workers=1,
+#         name="CreateNsAudioPackage",
+#         phases=[
+#             PipelinePhase(
+#                 name="CreateNsAudioPackagePhase",
+#                 modules=[
+#                     CreateNsAudioPackage()
+#                 ]
+#             )
+#         ]
+#     ),
+
+#     PipelineController(
+#         mode=ControllerMode.FIRST_WINS,
+#         max_workers=1,
+#         name="MainProcessingController",
+#         phases=[
+#             PipelinePhase(
+#                 name="WhisperPhase",
+#                 modules=[
+#                     # Whisper()
+#                     WhisperX_load_audio(),
+#                     WhisperX_transcribe(),
+#                     WhisperX_align(),
+#                     Clean_Whisper_data(),
+#                     Local_Agreement(),
+#                     # Next_Word_Prediction()
+#                 ]
+#             )
+#         ]
+#     )
+# ]
+
+# CreateNsAudioPackage, Load_audio, VAD, Faster_Whisper_transcribe, Local_Agreement
 controllers = [
     PipelineController(
         mode=ControllerMode.NOT_PARALLEL,
@@ -42,13 +81,10 @@ controllers = [
             PipelinePhase(
                 name="WhisperPhase",
                 modules=[
-                    # Whisper()
-                    WhisperX_load_audio(),
-                    WhisperX_transcribe(),
-                    WhisperX_align(),
-                    Clean_Whisper_data(),
+                    Load_audio(),
+                    VAD(),
+                    Faster_Whisper_transcribe(),
                     Local_Agreement(),
-                    Next_Word_Prediction()
                 ]
             )
         ]
@@ -58,9 +94,9 @@ controllers = [
 pipeline = Pipeline[data.AudioData](controllers, name="WhisperPipeline")
 
 def callback(dp: DataPackage[data.AudioData]) -> None:
-    if dp.data and dp.data.transcribed_text:
+    if dp.data and dp.data.transcribed_segments:
         # log.info(f"Text: {dp.data.transcribed_text['words']}")
-        log.info(f"{dp.data.transcribed_text['confirmed_words']} +++ {dp.data.transcribed_text['unconfirmed_words']} +++ {dp.data.transcribed_text['next_word']}")
+        log.info(f"{dp.data.confirmed_words} +++ {dp.data.unconfirmed_words}")
     pass
     
 def exit_callback(dp: DataPackage[data.AudioData]) -> None:
@@ -92,7 +128,7 @@ def simulate_live_audio_stream(file_path: str, sample_rate: int = 48000) -> None
         # Sleep to simulate real-time audio playback
         time.sleep(frame_duration)
 
-        audio_data: data.AudioData = data.AudioData(raw_audio_data=frame.raw_data)
+        audio_data: data.AudioData = data.AudioData(raw_audio_data=frame.raw_data, sample_rate=sample_rate)
 
         pipeline.execute(audio_data, instance, callback=callback, exit_callback=exit_callback, overflow_callback=overflow_callback, outdated_callback=outdated_callback, error_callback=error_callback)
 
