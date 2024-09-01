@@ -2,6 +2,7 @@
 import time
 from typing import List, Optional
 
+from prometheus_client import start_http_server
 
 from stream_pipeline.grpc_server import GrpcServer
 
@@ -20,6 +21,8 @@ from next_word import Next_Word_Prediction
 from asr_faster_whisper import CreateNsAudioPackage, Load_audio, VAD, Faster_Whisper_transcribe, Local_Agreement
 
 log = logger.setup_logging()
+
+start_http_server(8000)
 
 # controllers = [
 #     PipelineController(
@@ -96,7 +99,8 @@ pipeline = Pipeline[data.AudioData](controllers, name="WhisperPipeline")
 def callback(dp: DataPackage[data.AudioData]) -> None:
     if dp.data and dp.data.transcribed_segments:
         # log.info(f"Text: {dp.data.transcribed_text['words']}")
-        log.info(f"{dp.data.confirmed_words} +++ {dp.data.unconfirmed_words}")
+        processing_time = dp.total_time
+        log.info(f"{processing_time:2f}:  {dp.data.confirmed_words} +++ {dp.data.unconfirmed_words}")
     pass
     
 def exit_callback(dp: DataPackage[data.AudioData]) -> None:
@@ -126,7 +130,8 @@ def simulate_live_audio_stream(file_path: str, sample_rate: int = 48000) -> None
         previous_granule_position = current_granule_position
 
         # Sleep to simulate real-time audio playback
-        time.sleep(frame_duration)
+        time.sleep(frame_duration/3)
+        print(frame_duration)
 
         audio_data: data.AudioData = data.AudioData(raw_audio_data=frame.raw_data, sample_rate=sample_rate)
 
@@ -136,7 +141,7 @@ if __name__ == "__main__":
     # Path to the Ogg file
     file_path: str = './audio/audio.ogg'
     start_time: float = time.time()
-    simulate_live_audio_stream(file_path)
+    simulate_live_audio_stream(file_path, 16000)
     end_time: float = time.time()
 
     execution_time: float = end_time - start_time
