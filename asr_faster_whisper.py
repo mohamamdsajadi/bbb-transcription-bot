@@ -117,11 +117,12 @@ class Load_audio(Module):
             ),
             name="Load_audio"
         )
+        self.convert_sample_rate: int = 16000
 
     def init_module(self) -> None:
         pass
 
-    def load_audio_from_binary(self, data: bytes, sr: int = 16000) -> np.ndarray:
+    def load_audio_from_binary(self, data: bytes) -> np.ndarray:
         """
         Process binary audio data (e.g., OGG Opus) and convert it to a mono waveform, resampling as necessary.
 
@@ -149,7 +150,7 @@ class Load_audio(Module):
                 "-f", "s16le",
                 "-ac", "1",
                 "-acodec", "pcm_s16le",
-                "-ar", str(sr),
+                "-ar", str(self.convert_sample_rate),
                 "-",
             ]
 
@@ -175,10 +176,9 @@ class Load_audio(Module):
             raise Exception("No data found")
         if not dp.data.raw_audio_data:
             raise Exception("No audio data found")
-        if not dp.data.sample_rate:
-            raise Exception("No sample rate found")
         
-        audio_data = self.load_audio_from_binary(dp.data.raw_audio_data, dp.data.sample_rate)
+        audio_data = self.load_audio_from_binary(dp.data.raw_audio_data)
+        dp.data.audio_data_sample_rate = self.convert_sample_rate
         dp.data.audio_data = audio_data
 
 
@@ -270,11 +270,11 @@ class VAD(Module):
             raise Exception("No data found")
         if dp.data.audio_data is None:
             raise Exception("No audio data found")
-        if not dp.data.sample_rate:
+        if not dp.data.audio_data_sample_rate:
             raise Exception("No sample rate found")
         
         # Perform voice activity detection
-        vad_result: Annotation = self.model.apply(dp.data.audio_data, sr=dp.data.sample_rate)
+        vad_result: Annotation = self.model.apply(dp.data.audio_data, sr=dp.data.audio_data_sample_rate)
         
         # Merge VAD segments if necessary
         merged_segments: List[Dict[str, float]] = merge_chunks(vad_result, chunk_size=self.chunk_size)
@@ -478,11 +478,11 @@ class Faster_Whisper_transcribe(Module):
             raise Exception("No audio data found")
         if not dp.data.vad_result:
             raise Exception("No audio data from VAD found")
-        if not dp.data.sample_rate:
+        if not dp.data.audio_data_sample_rate:
             raise Exception("No sample rate found")
         
         # Detect language with confidence threshold
-        language, confidence = self.model.detect_language(dp.data.audio_data, dp.data.sample_rate, self.audio_chunk_to_detect_language)
+        language, confidence = self.model.detect_language(dp.data.audio_data, dp.data.audio_data_sample_rate, self.audio_chunk_to_detect_language)
         dp.data.language = (language, confidence)
         
         # Initialize tokenizer for transcription 
@@ -495,7 +495,7 @@ class Faster_Whisper_transcribe(Module):
         
         segment_audio = dp.data.audio_data
         merged_segments = dp.data.vad_result
-        sample_rate = dp.data.sample_rate
+        sample_rate = dp.data.audio_data_sample_rate
         
         result: List[data.TextSegment] = []
         
