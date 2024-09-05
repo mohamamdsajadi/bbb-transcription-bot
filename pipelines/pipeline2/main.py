@@ -19,49 +19,13 @@ from extract_ogg import get_header_frames, split_ogg_data_into_frames, OggSFrame
 import logger
 # from m_stt_whisper import Whisper
 # from asr_whisperx import Clean_Whisper_data, Local_Agreement, WhisperX_align, WhisperX_load_audio, WhisperX_transcribe
-from next_word import Next_Word_Prediction
+# from next_word import Next_Word_Prediction
 
 from asr_faster_whisper import Create_Audio_Buffer, Load_audio, VAD, Faster_Whisper_transcribe, Local_Agreement
 
 log = logger.setup_logging()
 
 start_http_server(8000)
-
-# controllers = [
-#     PipelineController(
-#         mode=ControllerMode.NOT_PARALLEL,
-#         max_workers=1,
-#         name="CreateNsAudioPackage",
-#         phases=[
-#             PipelinePhase(
-#                 name="CreateNsAudioPackagePhase",
-#                 modules=[
-#                     CreateNsAudioPackage()
-#                 ]
-#             )
-#         ]
-#     ),
-
-#     PipelineController(
-#         mode=ControllerMode.FIRST_WINS,
-#         max_workers=1,
-#         name="MainProcessingController",
-#         phases=[
-#             PipelinePhase(
-#                 name="WhisperPhase",
-#                 modules=[
-#                     # Whisper()
-#                     WhisperX_load_audio(),
-#                     WhisperX_transcribe(),
-#                     WhisperX_align(),
-#                     Clean_Whisper_data(),
-#                     Local_Agreement(),
-#                     # Next_Word_Prediction()
-#                 ]
-#             )
-#         ]
-#     )
-# ]
 
 # CreateNsAudioPackage, Load_audio, VAD, Faster_Whisper_transcribe, Local_Agreement
 controllers = [
