@@ -21,7 +21,7 @@ import logger
 # from asr_whisperx import Clean_Whisper_data, Local_Agreement, WhisperX_align, WhisperX_load_audio, WhisperX_transcribe
 from next_word import Next_Word_Prediction
 
-from asr_faster_whisper import CreateNsAudioPackage, Load_audio, VAD, Faster_Whisper_transcribe, Local_Agreement
+from asr_faster_whisper import Create_Audio_Buffer, Load_audio, VAD, Faster_Whisper_transcribe, Local_Agreement
 
 log = logger.setup_logging()
 
@@ -68,12 +68,12 @@ controllers = [
     PipelineController(
         mode=ControllerMode.NOT_PARALLEL,
         max_workers=1,
-        name="CreateNsAudioPackage",
+        name="Create_Audio_Buffer",
         phases=[
             PipelinePhase(
-                name="CreateNsAudioPackagePhase",
+                name="Create_Audio_Buffer",
                 modules=[
-                    CreateNsAudioPackage()
+                    Create_Audio_Buffer()
                 ]
             )
         ]
@@ -203,7 +203,7 @@ def convert_to_ogg_opus(input_file, output_file):
 
 if __name__ == "__main__":
     # Path to the input audio file
-    file_path = './audio/audio.mp3'  # Replace with your file path
+    file_path = 'audio/audio-slow.ogg'  # Replace with your file path
     
     # Generate output file name with .ogg extension
     output_file = os.path.splitext(file_path)[0] + '.ogg'

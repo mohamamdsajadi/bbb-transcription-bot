@@ -29,13 +29,13 @@ log = logger.get_logger()
 
 
 
-class CreateNsAudioPackage(ExecutionModule):
+class Create_Audio_Buffer(ExecutionModule):
     def __init__(self) -> None:
         super().__init__(ModuleOptions(
                                 use_mutex=False,
                                 timeout=5,
                             ),
-                            name="Create10sAudioPackage"
+                            name="Create_Audio_Buffer"
                         )
         self.audio_data_buffer: List[OggSFrame] = []
         self.last_n_seconds: int = 30
@@ -278,6 +278,10 @@ class VAD(Module):
         
         # Merge VAD segments if necessary
         merged_segments: List[Dict[str, float]] = merge_chunks(vad_result, chunk_size=self.chunk_size)
+        
+        if len(merged_segments) == 0:
+            dpm.message = "No voice detected"
+            dpm.status = Status.EXIT
         
         dp.data.vad_result = merged_segments
         
