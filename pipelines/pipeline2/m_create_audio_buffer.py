@@ -4,7 +4,7 @@ from typing import List, Optional
 from stream_pipeline.data_package import DataPackage, DataPackageController, DataPackagePhase, DataPackageModule, Status
 from stream_pipeline.module_classes import Module, ExecutionModule, ModuleOptions
 
-from extract_ogg import OggSFrame, calculate_frame_duration, get_header_frames
+from extract_ogg import OggSFrame, calculate_frame_duration, get_header_frames, get_sample_rate
 import data
 import logger
 
@@ -27,16 +27,13 @@ class Create_Audio_Buffer(ExecutionModule):
 
         self.header_buffer: bytes = b''
         self.header_frames: Optional[List[OggSFrame]] = None
+        self.sample_rate: int = 0
 
     def execute(self, dp: DataPackage[data.AudioData], dpc: DataPackageController, dpp: DataPackagePhase, dpm: DataPackageModule) -> None:
         if not dp.data:
             raise Exception("No data found")
         if not dp.data.raw_audio_data:
             raise Exception("No audio data found")
-        if not dp.data.sample_rate:
-            raise Exception("No sample rate found")
-            
-        sample_rate = dp.data.sample_rate
             
         frame = OggSFrame(dp.data.raw_audio_data)
 
@@ -45,6 +42,7 @@ class Create_Audio_Buffer(ExecutionModule):
             id_header_frame, comment_header_frames = get_header_frames(self.header_buffer)
 
             if id_header_frame and comment_header_frames:
+                self.sample_rate = get_sample_rate(id_header_frame)
                 self.header_frames = []
                 self.header_frames.append(id_header_frame)
                 self.header_frames.extend(comment_header_frames)
@@ -60,7 +58,7 @@ class Create_Audio_Buffer(ExecutionModule):
         current_granule_position: int = frame.header['granule_position']
         previous_granule_position: int = last_frame.header['granule_position'] if last_frame else 0
 
-        frame_duration: float = calculate_frame_duration(current_granule_position, previous_granule_position, sample_rate)
+        frame_duration: float = calculate_frame_duration(current_granule_position, previous_granule_position, self.sample_rate)
         previous_granule_position = current_granule_position
 
 
@@ -74,7 +72,7 @@ class Create_Audio_Buffer(ExecutionModule):
                 pop_frame = self.audio_data_buffer.pop(0)
                 pop_frame_granule_position = pop_frame.header['granule_position']
                 next_frame_granule_position = self.audio_data_buffer[0].header['granule_position'] if len(self.audio_data_buffer) > 0 else pop_frame_granule_position
-                pop_frame_duration = calculate_frame_duration(next_frame_granule_position, pop_frame_granule_position, sample_rate)
+                pop_frame_duration = calculate_frame_duration(next_frame_granule_position, pop_frame_granule_position, self.sample_rate)
                 self.current_audio_buffer_seconds -= pop_frame_duration
 
             # Combine the audio buffer into a single audio package

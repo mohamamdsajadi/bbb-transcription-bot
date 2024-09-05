@@ -17,6 +17,7 @@ from m_local_agreement import Local_Agreement
 from m_vad import VAD
 import data
 import logger
+from simulate_live_audio_stream import simulate_live_audio_stream
 
 log = logger.setup_logging()
 
@@ -79,116 +80,24 @@ def error_callback(dp: DataPackage[data.AudioData]) -> None:
 
 instance = pipeline.register_instance()
 
-def simulate_live_audio_stream(file_path: str, sample_rate: int) -> None:
-    with open(file_path, 'rb') as file:
-        ogg_bytes: bytes = file.read()
-
-    frames: List[OggSFrame] = split_ogg_data_into_frames(ogg_bytes)  # Assuming Frame is the type for frames
-    previous_granule_position: Optional[int] = None
-
-    for frame_index, frame in enumerate(frames):
-        current_granule_position: int = frame.header['granule_position']
-        frame_duration: float = calculate_frame_duration(current_granule_position, previous_granule_position, sample_rate)
-        previous_granule_position = current_granule_position
-
-        # Sleep to simulate real-time audio playback
-        time.sleep(frame_duration)
-        print(frame_duration)
-
-        audio_data: data.AudioData = data.AudioData(raw_audio_data=frame.raw_data, sample_rate=sample_rate)
-
-        pipeline.execute(audio_data, instance, callback=callback, exit_callback=exit_callback, overflow_callback=overflow_callback, outdated_callback=outdated_callback, error_callback=error_callback)
-
-
-
-def is_ogg_opus(file_path: str) -> bool:
-    """
-    Check if a file is an Ogg Opus file using ffmpeg.
-    """
-    try:
-        # Probe the file to get its metadata
-        probe = ffmpeg.probe(file_path)
-        # Find the audio stream
-        audio_streams = [stream for stream in probe['streams'] if stream['codec_type'] == 'audio']
-        
-        # If there are no audio streams, return False
-        if not audio_streams:
-            return False
-        
-        # Check if the codec_name is opus and the container format is ogg
-        is_opus = any(stream['codec_name'] == 'opus' for stream in audio_streams)
-        is_ogg = probe['format']['format_name'] == 'ogg'
-        
-        return is_opus and is_ogg
-    except ffmpeg.Error as e:
-        print(f"Error while probing file: {e}")
-        return False
-
-def get_sample_rate(file_path: str) -> Optional[int]:
-    """
-    Get the sample rate of an Ogg Opus file using ffmpeg.
-    """
-    try:
-        # Probe the file to get its metadata
-        probe = ffmpeg.probe(file_path)
-        # Find the audio stream
-        audio_stream = next((stream for stream in probe['streams'] if stream['codec_type'] == 'audio'), None)
-        
-        # If no audio stream found, return None
-        if audio_stream is None:
-            return None
-        
-        # Get the sample rate
-        sample_rate = int(audio_stream['sample_rate'])
-        return sample_rate
-    except ffmpeg.Error as e:
-        print(f"Error while probing file: {e}")
-        return None
-
-def convert_to_ogg_opus(input_file: str, output_file: str) -> None:
-    """
-    Convert any audio file to Ogg Opus format using ffmpeg.
-
-    Args:
-        input_file (str): The path to the input audio file.
-        output_file (str): The path to the output Ogg Opus file.
-    """
-    try:
-        # Use ffmpeg to convert the input file to Ogg Opus format
-        ffmpeg.input(input_file).output(output_file, format='opus', acodec='libopus', audio_bitrate='64k').run()
-        print(f"Conversion successful! Output file: {output_file}")
-    except ffmpeg.Error as e:
-        print(f"Error during conversion: {e.stderr.decode()}")
+def simulated_callback(raw_audio_data: bytes) -> None:
+    audio_data = data.AudioData(raw_audio_data=raw_audio_data)
+    pipeline.execute(
+                    audio_data, instance, 
+                    callback=callback, 
+                    exit_callback=exit_callback, 
+                    overflow_callback=overflow_callback, 
+                    outdated_callback=outdated_callback, 
+                    error_callback=error_callback
+                    )
 
 if __name__ == "__main__":
     # Path to the input audio file
     file_path = 'audio/audio-slow.ogg'  # Replace with your file path
     
-    # Generate output file name with .ogg extension
-    output_file = os.path.splitext(file_path)[0] + '.ogg'
-    
-    # Check if the file is already an Ogg Opus file
-    if not is_ogg_opus(file_path):
-        log.info(f"{file_path} is not an Ogg Opus file. Converting to Ogg Opus format...")
-        
-        # Check if the output file already exists
-        if os.path.exists(output_file):
-            raise FileExistsError(f"The output file '{output_file}' already exists. Aborting conversion.")
-        
-        # Convert the file to Ogg Opus format
-        convert_to_ogg_opus(file_path, output_file)
-    else:
-        log.info(f"{file_path} is already an Ogg Opus file.")
-    
-    # Get sample rate of the resulting file (Ogg Opus)
-    sample_rate = get_sample_rate(output_file)
-    if sample_rate is None:
-        raise ValueError(f"Could not determine sample rate of {output_file}")
-    log.info(f"Sample rate: {sample_rate} Hz")
-    
     # Simulate live audio stream (example usage)
     start_time = time.time()
-    simulate_live_audio_stream(output_file, sample_rate)
+    simulate_live_audio_stream(file_path, simulated_callback)
     end_time = time.time()
 
     execution_time = end_time - start_time

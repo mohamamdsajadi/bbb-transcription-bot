@@ -13,7 +13,6 @@ class TextSegment:
 @dataclass
 class AudioData:
     raw_audio_data: bytes                                    # Current audio chunk from stream
-    sample_rate: int                                         # Sample rate of the audio data
     audio_buffer: Optional[bytes] = None                     # Buffer of n seconds of raw audio data
     audio_data: Optional[np.ndarray] = None                  # Audio data converted to mono waveform
     audio_data_sample_rate: Optional[int] = None             # Sample rate of the audio data after conversion

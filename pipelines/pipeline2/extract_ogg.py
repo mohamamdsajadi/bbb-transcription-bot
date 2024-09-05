@@ -260,6 +260,8 @@ def calculate_frame_duration(current_granule_position: int, previous_granule_pos
     duration = samples / sample_rate
     return duration
 
+def get_sample_rate(id_header_frame: OggSFrame) -> int:
+    return int.from_bytes(id_header_frame.data[12:16], 'little')
 
 def __main__() -> None:
     # Path to the Ogg file
