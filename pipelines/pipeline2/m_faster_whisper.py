@@ -1,13 +1,14 @@
+# m_faster_whisper.py
 from typing import List, Tuple
+
 import numpy as np
 import ctranslate2  # type: ignore
 import faster_whisper  # type: ignore
 from whisperx.audio import log_mel_spectrogram  # type: ignore
-
 import torch
 
-from stream_pipeline.data_package import DataPackage, DataPackageController, DataPackagePhase, DataPackageModule, Status
-from stream_pipeline.module_classes import Module, ExecutionModule, ModuleOptions
+from stream_pipeline.data_package import DataPackage, DataPackageController, DataPackagePhase, DataPackageModule
+from stream_pipeline.module_classes import Module, ModuleOptions
 import logger
 import data
 

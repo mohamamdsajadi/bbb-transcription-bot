@@ -1,9 +1,11 @@
+# m_create_audio_buffer.py
 from typing import List, Optional
+
 from stream_pipeline.data_package import DataPackage, DataPackageController, DataPackagePhase, DataPackageModule, Status
 from stream_pipeline.module_classes import Module, ExecutionModule, ModuleOptions
-import data
-from extract_ogg import OggSFrame, calculate_frame_duration, get_header_frames
 
+from extract_ogg import OggSFrame, calculate_frame_duration, get_header_frames
+import data
 import logger
 
 log = logger.get_logger()
@@ -17,7 +19,7 @@ class Create_Audio_Buffer(ExecutionModule):
                             name="Create_Audio_Buffer"
                         )
         self.audio_data_buffer: List[OggSFrame] = []
-        self.last_n_seconds: int = 30
+        self.last_n_seconds: int = 10
         self.min_n_seconds: int = 1
         self.current_audio_buffer_seconds: float = 0
 

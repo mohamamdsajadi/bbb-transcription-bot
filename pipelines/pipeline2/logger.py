@@ -1,11 +1,12 @@
-import atexit
+# logger.py
 import json
 import logging
 import logging.config
 import logging.handlers
 import os
 import pathlib
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional
+
 from stream_pipeline.logger import PipelineLogger
 
 def get_logger() -> logging.Logger:

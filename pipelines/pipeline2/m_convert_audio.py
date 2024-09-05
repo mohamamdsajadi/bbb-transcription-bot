@@ -1,10 +1,13 @@
+# m_convert_audio.py
 import subprocess
 import numpy as np
+
 from stream_pipeline.data_package import DataPackage, DataPackageController, DataPackagePhase, DataPackageModule, Status
 from stream_pipeline.module_classes import Module, ExecutionModule, ModuleOptions
-import data
 
+import data
 import logger
+
 log = logger.get_logger()
 
 class Convert_Audio(Module):

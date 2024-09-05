@@ -4,27 +4,19 @@ import time
 from typing import List, Optional
 
 import ffmpeg # type: ignore
-
 from prometheus_client import start_http_server
 
+from stream_pipeline.data_package import DataPackage
+from stream_pipeline.pipeline import Pipeline, ControllerMode, PipelinePhase, PipelineController
+
+from extract_ogg import split_ogg_data_into_frames, OggSFrame, calculate_frame_duration
 from m_convert_audio import Convert_Audio
 from m_create_audio_buffer import Create_Audio_Buffer
 from m_faster_whisper import Faster_Whisper_transcribe
 from m_local_agreement import Local_Agreement
 from m_vad import VAD
-from stream_pipeline.grpc_server import GrpcServer
-
-from stream_pipeline.data_package import DataPackage, DataPackageController, DataPackagePhase, DataPackageModule
-from stream_pipeline.module_classes import Module, ExecutionModule, ModuleOptions
-from stream_pipeline.pipeline import Pipeline, ControllerMode, PipelinePhase, PipelineController
-
-# from m_create_audio_package import CreateNsAudioPackage
 import data
-from extract_ogg import get_header_frames, split_ogg_data_into_frames, OggSFrame, calculate_frame_duration
 import logger
-# from m_stt_whisper import Whisper
-# from asr_whisperx import Clean_Whisper_data, Local_Agreement, WhisperX_align, WhisperX_load_audio, WhisperX_transcribe
-# from next_word import Next_Word_Prediction
 
 log = logger.setup_logging()
 

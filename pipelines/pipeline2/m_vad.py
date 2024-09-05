@@ -1,23 +1,24 @@
-import hashlib
+# m_vad.py
 from typing import Any, Callable, Dict, List, Optional, Text, Union
-
-import numpy as np
-from stream_pipeline.data_package import DataPackage, DataPackageController, DataPackagePhase, DataPackageModule, Status
-from stream_pipeline.module_classes import Module, ExecutionModule, ModuleOptions
-import data
-
+import hashlib
 import os
 import urllib
 from tqdm import tqdm # type: ignore
+
+import numpy as np
 import torch
 from whisperx.vad import merge_chunks  # type: ignore
-
 from pyannote.audio import Model # type: ignore
 from pyannote.audio.pipelines import VoiceActivityDetection # type: ignore
 from pyannote.audio.pipelines.utils import PipelineModel # type: ignore
 from pyannote.core import Annotation, Segment, SlidingWindowFeature # type: ignore
 
+from stream_pipeline.data_package import DataPackage, DataPackageController, DataPackagePhase, DataPackageModule, Status
+from stream_pipeline.module_classes import Module, ModuleOptions
+
+import data
 import logger
+
 log = logger.get_logger()
 
 class VoiceActivitySegmentation(VoiceActivityDetection):
