@@ -18,6 +18,7 @@ class Local_Agreement(Module):
             ),
             name="Local_Agreement"
         )
+        self.max_confirmed_words = 50
 
         self.unconfirmed: List[str] = []  # To store unconfirmed words
         self.confirmed: List[str] = []    # To store confirmed words
@@ -88,6 +89,8 @@ class Local_Agreement(Module):
             self.unconfirmed = new_words
         
         create_confirmed_and_unconfirmed_lists(new_words)
+        
+        self.confirmed = self.confirmed[-self.max_confirmed_words:] 
         
         dp.data.confirmed_words = self.confirmed
         dp.data.unconfirmed_words = self.unconfirmed
