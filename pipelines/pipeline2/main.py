@@ -7,6 +7,11 @@ import ffmpeg # type: ignore
 
 from prometheus_client import start_http_server
 
+from m_convert_audio import Convert_Audio
+from m_create_audio_buffer import Create_Audio_Buffer
+from m_faster_whisper import Faster_Whisper_transcribe
+from m_local_agreement import Local_Agreement
+from m_vad import VAD
 from stream_pipeline.grpc_server import GrpcServer
 
 from stream_pipeline.data_package import DataPackage, DataPackageController, DataPackagePhase, DataPackageModule
@@ -20,8 +25,6 @@ import logger
 # from m_stt_whisper import Whisper
 # from asr_whisperx import Clean_Whisper_data, Local_Agreement, WhisperX_align, WhisperX_load_audio, WhisperX_transcribe
 # from next_word import Next_Word_Prediction
-
-from asr_faster_whisper import Create_Audio_Buffer, Load_audio, VAD, Faster_Whisper_transcribe, Local_Agreement
 
 log = logger.setup_logging()
 
@@ -51,7 +54,7 @@ controllers = [
             PipelinePhase(
                 name="WhisperPhase",
                 modules=[
-                    Load_audio(),
+                    Convert_Audio(),
                     VAD(),
                     Faster_Whisper_transcribe(),
                     Local_Agreement(),
@@ -106,7 +109,7 @@ def simulate_live_audio_stream(file_path: str, sample_rate: int) -> None:
 
 
 
-def is_ogg_opus(file_path):
+def is_ogg_opus(file_path: str) -> bool:
     """
     Check if a file is an Ogg Opus file using ffmpeg.
     """
@@ -129,7 +132,7 @@ def is_ogg_opus(file_path):
         print(f"Error while probing file: {e}")
         return False
 
-def get_sample_rate(file_path):
+def get_sample_rate(file_path: str) -> Optional[int]:
     """
     Get the sample rate of an Ogg Opus file using ffmpeg.
     """
@@ -150,7 +153,7 @@ def get_sample_rate(file_path):
         print(f"Error while probing file: {e}")
         return None
 
-def convert_to_ogg_opus(input_file, output_file):
+def convert_to_ogg_opus(input_file: str, output_file: str) -> None:
     """
     Convert any audio file to Ogg Opus format using ffmpeg.
 
@@ -187,6 +190,8 @@ if __name__ == "__main__":
     
     # Get sample rate of the resulting file (Ogg Opus)
     sample_rate = get_sample_rate(output_file)
+    if sample_rate is None:
+        raise ValueError(f"Could not determine sample rate of {output_file}")
     log.info(f"Sample rate: {sample_rate} Hz")
     
     # Simulate live audio stream (example usage)
