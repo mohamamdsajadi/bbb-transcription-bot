@@ -107,23 +107,35 @@ if __name__ == "__main__":
     
     # Simulate live audio stream (example usage)
     start_time = time.time()
-    simulate_live_audio_stream(file_path, simulated_callback)
+    time_to_load_file = simulate_live_audio_stream(file_path, simulated_callback)
+    print(f"Time to load file: {time_to_load_file} seconds")
     end_time = time.time()
 
     # Save the live transcription as a JSON
-    result_tuple = create_live_transcription_tuple(result)
-    with open('live_transcript.json', 'w') as f:
-        json.dump(result_tuple, f)
+    with result_mutex:
+        result_tuple = create_live_transcription_tuple(result, start_time)
+        with open('live_transcript.json', 'w') as f:
+            json.dump(result_tuple, f)
 
     # Load the JSON file
-    # with open('live_transcript.json', 'r') as f:
-    #     loaded_data = json.load(f)
-    # result_tuple = tuple(loaded_data)
+    with open('live_transcript.json', 'r') as f:
+        loaded_data = json.load(f)
+    result_tuple = tuple(loaded_data)
 
     # safe transcript and result_tuple as json in a file
     transcript = transcribe_audio(file_path)
-    avg_transcription_time = calculate_avg_time_difference(result_tuple, transcript, 5)
+    uncon, con = calculate_avg_time_difference(result_tuple, transcript, 5)
 
-    execution_time = end_time - start_time
-    log.info(f"Execution time: {execution_time} seconds")
-    log.info(f"Average transcription time: {avg_transcription_time} seconds")
+    execution_time = end_time - start_time - time_to_load_file
+    print(f"Execution time: {execution_time} seconds")
+    print(f"Average transcription time: {uncon[0]} seconds")
+    print(f"Min time difference: {uncon[1]} seconds")
+    print(f"Max time difference: {uncon[2]} seconds")
+    print(f"Median: {uncon[3]} seconds")
+    print(f"Standard deviation: {uncon[4]} seconds")
+    print("----------------------------------------------------")
+    print(f"Average confirmation time: {con[0]} seconds")
+    print(f"Min time difference: {con[1]} seconds")
+    print(f"Max time difference: {con[2]} seconds")
+    print(f"Median: {con[3]} seconds")
+    print(f"Standard deviation: {con[4]} seconds")
