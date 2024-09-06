@@ -11,6 +11,8 @@ model = AutoModelForSeq2SeqLM.from_pretrained("facebook/nllb-200-distilled-600M"
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model = model.to(device)
 
+start_all = time.time()
+
 article = "Şeful ONU spune că nu există o soluţie militară în Siria"
 
 # Tokenize input and move to GPU if available
@@ -83,14 +85,10 @@ def translate_to_language(target_lang):
     return target_lang, translated_text, end - start
 
 # Parallel translation
-start_all = time.time()
-with ThreadPoolExecutor(max_workers=len(target_languages)) as executor:
-    futures = [executor.submit(translate_to_language, lang) for lang in target_languages]
-
-    # Print the results as they are completed
-    for future in as_completed(futures):
-        lang, text, duration = future.result()
-        print(f"Translation to {lang}: {text} (Time taken: {duration:.2f} seconds)")
+# Print the results as they are completed
+for lang in target_languages:
+    lang, text, duration = translate_to_language(lang)
+    print(f"Translation to {lang}: {text} (Time taken: {duration:.2f} seconds)")
 
 end_all = time.time()
 print(f"Total time taken for {len(target_languages)} languages to translate: {end_all - start_all:.2f} seconds")
