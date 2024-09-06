@@ -23,3 +23,4 @@ class AudioData:
     transcribed_words: Optional[List[str]] = None            # List of transcribed words
     confirmed_words: Optional[List[str]] = None              # List of confirmed words
     unconfirmed_words: Optional[List[str]] = None            # List of unconfirmed words
+    translations: Optional[Dict[str, str]] = None            # Translations to target languages

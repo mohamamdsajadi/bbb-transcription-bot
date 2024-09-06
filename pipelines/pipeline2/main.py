@@ -1,7 +1,9 @@
 # main.py
 import os
+import threading
 import time
 from typing import List, Optional
+import json
 
 import ffmpeg # type: ignore
 from prometheus_client import start_http_server
@@ -17,7 +19,7 @@ from m_local_agreement import Local_Agreement
 from m_vad import VAD
 import data
 import logger
-from simulate_live_audio_stream import simulate_live_audio_stream
+from simulate_live_audio_stream import calculate_avg_time_difference, create_live_transcription_tuple, simulate_live_audio_stream, transcribe_audio
 
 log = logger.setup_logging()
 
@@ -59,18 +61,22 @@ controllers = [
 
 pipeline = Pipeline[data.AudioData](controllers, name="WhisperPipeline")
 
+result: List[DataPackage[data.AudioData]] = []
+result_mutex = threading.Lock()
 def callback(dp: DataPackage[data.AudioData]) -> None:
     if dp.data and dp.data.transcribed_segments:
         # log.info(f"Text: {dp.data.transcribed_text['words']}")
         processing_time = dp.total_time
         log.info(f"{processing_time:2f}:  {dp.data.confirmed_words} +++ {dp.data.unconfirmed_words}")
+        with result_mutex:
+            result.append(dp)
     pass
     
 def exit_callback(dp: DataPackage[data.AudioData]) -> None:
     log.info("Exit", extra={"data_package": dp})
 
 def overflow_callback(dp: DataPackage[data.AudioData]) -> None:
-    log.info("Overflow", extra={"data_package": dp})
+    log.info("Overflow")
 
 def outdated_callback(dp: DataPackage[data.AudioData]) -> None:
     log.info("Outdated", extra={"data_package": dp})
@@ -93,12 +99,27 @@ def simulated_callback(raw_audio_data: bytes) -> None:
 
 if __name__ == "__main__":
     # Path to the input audio file
-    file_path = 'audio/audio-slow.ogg'  # Replace with your file path
+    file_path = 'audio/audio.ogg'  # Replace with your file path
     
     # Simulate live audio stream (example usage)
     start_time = time.time()
     simulate_live_audio_stream(file_path, simulated_callback)
     end_time = time.time()
 
+    # Save the live transcription as a JSON
+    result_tuple = create_live_transcription_tuple(result)
+    with open('live_transcript.json', 'w') as f:
+        json.dump(result_tuple, f)
+
+    # Load the JSON file
+    # with open('live_transcript.json', 'r') as f:
+    #     loaded_data = json.load(f)
+    # result_tuple = tuple(loaded_data)
+
+    # safe transcript and result_tuple as json in a file
+    transcript = transcribe_audio(file_path)
+    avg_transcription_time = calculate_avg_time_difference(result_tuple, transcript, 5)
+
     execution_time = end_time - start_time
     log.info(f"Execution time: {execution_time} seconds")
+    log.info(f"Average transcription time: {avg_transcription_time} seconds")
