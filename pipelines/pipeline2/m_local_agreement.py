@@ -90,7 +90,8 @@ class Local_Agreement(Module):
         
         create_confirmed_and_unconfirmed_lists(new_words)
         
-        self.confirmed = self.confirmed[-self.max_confirmed_words:] 
+        if len(self.confirmed) > self.max_confirmed_words:
+            self.confirmed = self.confirmed[-self.max_confirmed_words:]
         
         dp.data.confirmed_words = self.confirmed
         dp.data.unconfirmed_words = self.unconfirmed
