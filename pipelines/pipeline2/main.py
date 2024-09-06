@@ -16,6 +16,7 @@ from m_convert_audio import Convert_Audio
 from m_create_audio_buffer import Create_Audio_Buffer
 from m_faster_whisper import Faster_Whisper_transcribe
 from m_local_agreement import Local_Agreement
+from m_rate_limiter import Rate_Limiter
 from m_vad import VAD
 import data
 import logger
@@ -35,7 +36,8 @@ controllers = [
             PipelinePhase(
                 name="Create_Audio_Buffer",
                 modules=[
-                    Create_Audio_Buffer()
+                    Create_Audio_Buffer(),
+                    Rate_Limiter(),
                 ]
             )
         ]
@@ -73,10 +75,12 @@ def callback(dp: DataPackage[data.AudioData]) -> None:
     pass
     
 def exit_callback(dp: DataPackage[data.AudioData]) -> None:
-    log.info("Exit", extra={"data_package": dp})
+    # log.info("Exit")
+    pass
 
 def overflow_callback(dp: DataPackage[data.AudioData]) -> None:
-    log.info("Overflow")
+    # log.info("Overflow")
+    pass
 
 def outdated_callback(dp: DataPackage[data.AudioData]) -> None:
     log.info("Outdated", extra={"data_package": dp})
