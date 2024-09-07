@@ -11,7 +11,6 @@ from prometheus_client import start_http_server
 from stream_pipeline.data_package import DataPackage
 from stream_pipeline.pipeline import Pipeline, ControllerMode, PipelinePhase, PipelineController
 
-from extract_ogg import split_ogg_data_into_frames, OggSFrame, calculate_frame_duration
 from m_convert_audio import Convert_Audio
 from m_create_audio_buffer import Create_Audio_Buffer
 from m_faster_whisper import Faster_Whisper_transcribe
@@ -31,6 +30,7 @@ controllers = [
     PipelineController(
         mode=ControllerMode.NOT_PARALLEL,
         max_workers=1,
+        queue_size=10,
         name="Create_Audio_Buffer",
         phases=[
             PipelinePhase(
@@ -75,11 +75,11 @@ def callback(dp: DataPackage[data.AudioData]) -> None:
     pass
     
 def exit_callback(dp: DataPackage[data.AudioData]) -> None:
-    # log.info("Exit")
+    # log.info(f"Exit: {dp.controllers[-1].phases[-1].modules[-1].message}")
     pass
 
 def overflow_callback(dp: DataPackage[data.AudioData]) -> None:
-    # log.info("Overflow")
+    log.info("Overflow")
     pass
 
 def outdated_callback(dp: DataPackage[data.AudioData]) -> None:
@@ -103,7 +103,7 @@ def simulated_callback(raw_audio_data: bytes) -> None:
 
 if __name__ == "__main__":
     # Path to the input audio file
-    file_path = 'audio/audio.ogg'  # Replace with your file path
+    file_path = 'audio/bbb.ogg'  # Replace with your file path
     
     # Simulate live audio stream (example usage)
     start_time = time.time()
