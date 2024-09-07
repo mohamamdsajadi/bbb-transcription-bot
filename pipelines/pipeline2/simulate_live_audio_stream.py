@@ -5,7 +5,7 @@ import whisperx # type: ignore
 from difflib import SequenceMatcher
 from typing import Callable, List, Optional
 
-from extract_ogg import OggSFrame, calculate_frame_duration, extract_id_header_frame, get_sample_rate, split_ogg_data_into_frames
+from ogg import Ogg_OPUS_Audio, OggS_Page, calculate_page_duration
 import data
 from stream_pipeline.data_package import DataPackage
 
@@ -15,22 +15,22 @@ def simulate_live_audio_stream(file_path: str, callback: Callable[[bytes], None]
         ogg_bytes: bytes = file.read()
     time_to_load_file = time.time() - start
 
-    frames: List[OggSFrame] = split_ogg_data_into_frames(ogg_bytes)
-    id_header_frame = extract_id_header_frame(frames)
-    if id_header_frame is None:
-        raise ValueError("No ID header frame found")
-    sample_rate = get_sample_rate(id_header_frame)
+    audio = Ogg_OPUS_Audio(ogg_bytes)
+    id_header_page = audio.id_header
+    if id_header_page is None:
+        raise ValueError("No ID header page found")
+    sample_rate = id_header_page.input_sample_rate
 
     previous_granule_position: Optional[int] = None
-    for frame_index, frame in enumerate(frames):
-        current_granule_position: int = frame.header['granule_position']
-        frame_duration: float = calculate_frame_duration(current_granule_position, previous_granule_position, sample_rate)
+    for page_index, page in enumerate(audio.pages):
+        current_granule_position: int = page.granule_position
+        page_duration: float = calculate_page_duration(current_granule_position, previous_granule_position, sample_rate)
         previous_granule_position = current_granule_position
 
         # Sleep to simulate real-time audio playback
-        time.sleep(frame_duration)
+        time.sleep(page_duration)
         
-        callback(frame.raw_data)
+        callback(page.raw_data)
     
     return time_to_load_file
         
@@ -80,7 +80,10 @@ def create_live_transcription_tuple(live_transcription: List[DataPackage[data.Au
     for dp in live_transcription:
         if dp.data:
             relative_time = dp.end_time - start_time
-            return_tuple.append((relative_time, dp.data.confirmed_words, dp.data.unconfirmed_words))
+            confirmed_words = dp.data.confirmed_words
+            unconfirmed_words = dp.data.unconfirmed_words
+            tuple_data = (relative_time, confirmed_words, unconfirmed_words)
+            return_tuple.append(tuple_data)
 
     return return_tuple
 
