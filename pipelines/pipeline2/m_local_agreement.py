@@ -1,5 +1,6 @@
 # m_local_agreement.py
 from typing import List
+import unicodedata
 
 from stream_pipeline.data_package import DataPackage, DataPackageController, DataPackagePhase, DataPackageModule
 from stream_pipeline.module_classes import Module, ModuleOptions
@@ -35,15 +36,22 @@ class Local_Agreement(Module):
 
         def is_similar(word1: str, word2: str, max_diff_chars: int = 1) -> bool:
             # Lowercase the words
-            word1 = word1.lower()
-            word2 = word2.lower()
+            word1_l = word1.lower()
+            word2_l = word2.lower()
             
-            # Remove all non-alphabetic characters
-            word1 = ''.join(filter(str.isalpha, word1))
-            word2 = ''.join(filter(str.isalpha, word2))
+            # Remove symbols and punctuation characters
+            def remove_symbols(word: str) -> str:
+                # Filter out characters classified as punctuation or symbols
+                return ''.join(
+                    char for char in word 
+                    if not unicodedata.category(char).startswith(('P', 'S'))
+                )
+            
+            word1_clean = remove_symbols(word1_l)
+            word2_clean = remove_symbols(word2_l)
             
             # Calculate the number of different characters between word1 and word2
-            diff_chars = sum(1 for a, b in zip(word1, word2) if a != b) + abs(len(word1) - len(word2))
+            diff_chars = sum(1 for a, b in zip(word1_clean, word2_clean) if a != b) + abs(len(word1_clean) - len(word2_clean))
             
             # Return True if the number of different characters is within the allowed maximum
             return diff_chars <= max_diff_chars
