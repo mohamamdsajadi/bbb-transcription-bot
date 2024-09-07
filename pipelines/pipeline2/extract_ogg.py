@@ -207,7 +207,7 @@ def extract_comment_header_frames(frames: List[OggSFrame]) -> Optional[List[OggS
     comment_header_frames: List[OggSFrame] = []
 
     for frame in frames:
-        if not comment_header_started:
+        if not comment_header_started and frame.data.startswith(b'OpusTags'):
             if frame.header['page_sequence_number'] == 1:
                 comment_header_started = True
                 comment_header_frames.append(frame)
@@ -265,7 +265,7 @@ def get_sample_rate(id_header_frame: OggSFrame) -> int:
 
 def __main__() -> None:
     # Path to the Ogg file
-    file_path = Path('./audio/audio.ogg')
+    file_path = Path('./audio/bbb.ogg')
     with open(file_path, 'rb') as file:
         ogg_bytes: bytes = file.read()
 

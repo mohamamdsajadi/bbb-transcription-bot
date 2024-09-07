@@ -5,6 +5,7 @@ from stream_pipeline.data_package import DataPackage, DataPackageController, Dat
 from stream_pipeline.module_classes import Module, ExecutionModule, ModuleOptions
 
 from extract_ogg import OggSFrame, calculate_frame_duration, get_header_frames, get_sample_rate
+from ogg import Ogg_OPUS_Audio
 import data
 import logger
 
@@ -38,14 +39,24 @@ class Create_Audio_Buffer(ExecutionModule):
         frame = OggSFrame(dp.data.raw_audio_data)
 
         if not self.header_frames:
-            self.header_buffer += frame.raw_data
-            id_header_frame, comment_header_frames = get_header_frames(self.header_buffer)
+            self.header_buffer += dp.data.raw_audio_data
+            audio = Ogg_OPUS_Audio(self.header_buffer)
+            print(f"Header Buffer: {len(self.header_buffer)}")
+            # id_header_frame, comment_header_frames = get_header_frames(self.header_buffer)
+            id_header = audio.id_header
+            comment_header = audio.comment_header
+            
+            print(f"ID Header Frame: {id_header}")
+            print(f"Comment Header Frames: {comment_header}")
 
-            if id_header_frame and comment_header_frames:
-                self.sample_rate = get_sample_rate(id_header_frame)
+            if id_header and comment_header:
+                self.sample_rate = id_header.input_sample_rate
                 self.header_frames = []
-                self.header_frames.append(id_header_frame)
-                self.header_frames.extend(comment_header_frames)
+                self.header_frames.append(OggSFrame(id_header.page.raw_data))
+                self.header_frames.extend([OggSFrame(frame.raw_data) for frame in comment_header.pages])
+                
+                with open('output.bin', 'wb') as f:
+                         f.write(self.header_buffer)
             else:
                 dpm.message = "Could not find the header frames"
                 dpm.status = Status.EXIT
