@@ -23,7 +23,7 @@ class Remove_Hallucination(Module):
         )
         
         self.max_distance = 5
-        self.similarity_threshold = 0.9
+        self.similarity_threshold = 0.95
 
     def init_module(self) -> None:
         pass
@@ -91,22 +91,29 @@ class Remove_Hallucination(Module):
             max_phrase_length = min(n - i, max_distance)
             
             # Check for repeated similar sequences of words
-            phrase_found = False
+            found_repetition = False
             for length in range(1, max_phrase_length + 1):
                 phrase = words[i:i + length]
                 next_start = i + length
                 
                 # Compare the current phrase with the next phrase of the same length
-                if next_start + length <= n:
+                while next_start + length <= n:
                     next_phrase = words[next_start:next_start + length]
                     if self.is_similar(phrase, next_phrase, similarity_threshold):
-                        # If a similar phrase is found, skip the repeated part
-                        i += length
-                        phrase_found = True
+                        # If a similar phrase is found, skip all further occurrences
+                        found_repetition = True
+                        next_start += length
+                    else:
                         break
+                
+                # If repetition is found, only keep the first occurrence and skip the rest
+                if found_repetition:
+                    result.extend(phrase)
+                    i = next_start
+                    break
             
-            # If no similar phrase is found, add the word to the result
-            if not phrase_found:
+            # If no repetition is found, add the word to the result
+            if not found_repetition:
                 result.append(words[i])
                 i += 1
         
