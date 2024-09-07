@@ -18,6 +18,7 @@ class Local_Agreement(Module):
             ),
             name="Local_Agreement"
         )
+        self.different_chars = 1
         self.max_confirmed_words = 50
 
         self.unconfirmed: List[str] = []  # To store unconfirmed words
@@ -31,12 +32,27 @@ class Local_Agreement(Module):
             raise Exception("No transcribed words found")
 
         new_words = dp.data.cleaned_words
-        
+
+        def is_similar(word1: str, word2: str, max_diff_chars: int = 1) -> bool:
+            # Lowercase the words
+            word1 = word1.lower()
+            word2 = word2.lower()
+            
+            # Remove all non-alphabetic characters
+            word1 = ''.join(filter(str.isalpha, word1))
+            word2 = ''.join(filter(str.isalpha, word2))
+            
+            # Calculate the number of different characters between word1 and word2
+            diff_chars = sum(1 for a, b in zip(word1, word2) if a != b) + abs(len(word1) - len(word2))
+            
+            # Return True if the number of different characters is within the allowed maximum
+            return diff_chars <= max_diff_chars
+
         def create_confirmed_and_unconfirmed_lists(new_words: List[str]) -> None:
             # Find the longest matching prefix between current_words and _unconfirmed_words
             for a, con_word in reversed(list(enumerate(self.unconfirmed))):
                 for b, new_word in reversed(list(enumerate(new_words))):
-                    if con_word == new_word:
+                    if is_similar(con_word, new_word, self.different_chars):
                         # Now we maybe know where the last unconfirmed word is in the new words list
                         # We can now start from here and go backwards to find the common prefix
                         # find the common prefix
@@ -44,11 +60,10 @@ class Local_Agreement(Module):
                         temp_un_word_list = list(reversed(self.unconfirmed[:a + 1]))
                         temp_new_word_list = list(reversed(new_words[:b + 1]))
                         for i in range(min(len(temp_un_word_list), len(temp_new_word_list))):
-                            if temp_un_word_list[i] == temp_new_word_list[i]:
+                            if is_similar(temp_un_word_list[i], temp_new_word_list[i], self.different_chars):
                                 common_prefix += 1
                             else:
                                 break
-                            
                         
                         # common_prefix has to be exactly the length of the unconfirmed word - processed unconfirmed
                         processed_unconfirmed = len(temp_un_word_list)
@@ -60,15 +75,14 @@ class Local_Agreement(Module):
                         else:
                             break
                 
-                # If we reach here, it means this unconfirmed word doesnt exist in the new words list
+                # If we reach here, it means this unconfirmed word doesn't exist in the new words list
                 # or the previous unconfirmed word changed. Remove it
                 self.unconfirmed = self.unconfirmed[:a]
             
-                        
             # Find the longest matching prefix between current_words and confirmed_words
             for a, con_word in reversed(list(enumerate(self.confirmed))):
                 for b, new_word in reversed(list(enumerate(new_words))):
-                    if con_word == new_word:
+                    if is_similar(con_word, new_word, self.different_chars):
                         # Now we maybe know where the last unconfirmed word is in the new words list
                         # We can now start from here and go backwards to find the common prefix
                         # find the common prefix
@@ -76,7 +90,7 @@ class Local_Agreement(Module):
                         temp_un_word_list = list(reversed(self.confirmed[:a + 1]))
                         temp_new_word_list = list(reversed(new_words[:b + 1]))
                         for i in range(min(len(temp_un_word_list), len(temp_new_word_list))):
-                            if temp_un_word_list[i] == temp_new_word_list[i]:
+                            if is_similar(temp_un_word_list[i], temp_new_word_list[i], self.different_chars):
                                 common_prefix += 1
                             else:
                                 break
@@ -84,7 +98,6 @@ class Local_Agreement(Module):
                         if common_prefix > 2:
                             self.unconfirmed = new_words[b + 1:]
                             return
-                        
             
             self.unconfirmed = new_words
         
