@@ -3,17 +3,15 @@ import time
 import torch
 import whisperx # type: ignore
 from difflib import SequenceMatcher
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Tuple
 
 from ogg import Ogg_OPUS_Audio, OggS_Page, calculate_page_duration
 import data
 from stream_pipeline.data_package import DataPackage
 
-def simulate_live_audio_stream(file_path: str, callback: Callable[[bytes], None]) -> float:
-    start = time.time()
+def simulate_live_audio_stream(file_path: str, callback: Callable[[bytes], None]) -> Tuple[float, float]:
     with open(file_path, 'rb') as file:
         ogg_bytes: bytes = file.read()
-    time_to_load_file = time.time() - start
 
     audio = Ogg_OPUS_Audio(ogg_bytes)
     id_header_page = audio.id_header
@@ -21,18 +19,22 @@ def simulate_live_audio_stream(file_path: str, callback: Callable[[bytes], None]
         raise ValueError("No ID header page found")
     sample_rate = id_header_page.input_sample_rate
 
+    start = time.time()
+
     previous_granule_position: Optional[int] = None
     for page_index, page in enumerate(audio.pages):
         current_granule_position: int = page.granule_position
         page_duration: float = calculate_page_duration(current_granule_position, previous_granule_position, sample_rate)
         previous_granule_position = current_granule_position
 
+        callback(page.raw_data)
+
         # Sleep to simulate real-time audio playback
         time.sleep(page_duration)
-        
-        callback(page.raw_data)
     
-    return time_to_load_file
+    end = time.time()
+    
+    return (start, end)
         
         
 
@@ -88,7 +90,7 @@ def create_live_transcription_tuple(live_transcription: List[DataPackage[data.Au
     return return_tuple
 
 
-def calculate_avg_time_difference(live_transcription, transcript, offset=5):
+def calculate_statistics(live_transcription, transcript, offset=5):
     
     def _find_segments(relative_time, transcript_segments, offset=10):
         """Finds segments within a given time range."""

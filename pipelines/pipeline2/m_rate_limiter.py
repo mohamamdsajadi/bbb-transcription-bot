@@ -17,7 +17,7 @@ class Rate_Limiter(ExecutionModule):
                             ),
                             name="Rate_Limiter"
                         )
-        self.flowrate_per_second: float = 0.5
+        self.flowrate_per_second: float = 2
 
         self.last_package_time: float = 0.0
 

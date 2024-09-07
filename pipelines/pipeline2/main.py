@@ -19,7 +19,7 @@ from m_rate_limiter import Rate_Limiter
 from m_vad import VAD
 import data
 import logger
-from simulate_live_audio_stream import calculate_avg_time_difference, create_live_transcription_tuple, simulate_live_audio_stream, transcribe_audio
+from simulate_live_audio_stream import calculate_statistics, create_live_transcription_tuple, simulate_live_audio_stream, transcribe_audio
 
 log = logger.setup_logging()
 
@@ -103,17 +103,16 @@ def simulated_callback(raw_audio_data: bytes) -> None:
 
 if __name__ == "__main__":
     # Path to the input audio file
-    file_path = 'audio/bbb.ogg'  # Replace with your file path
+    file_path = 'audio/audio.ogg'  # Replace with your file path
     
     # Simulate live audio stream (example usage)
-    start_time = time.time()
-    time_to_load_file = simulate_live_audio_stream(file_path, simulated_callback)
-    print(f"Time to load file: {time_to_load_file} seconds")
-    end_time = time.time()
+    start_simulation_time, end_simulation_time = simulate_live_audio_stream(file_path, simulated_callback)
+    
+    time.sleep(5)
 
     # Save the live transcription as a JSON
     with result_mutex:
-        result_tuple = create_live_transcription_tuple(result, start_time)
+        result_tuple = create_live_transcription_tuple(result, start_simulation_time)
         with open('live_transcript.json', 'w') as f:
             json.dump(result_tuple, f)
 
@@ -124,9 +123,9 @@ if __name__ == "__main__":
 
     # safe transcript and result_tuple as json in a file
     transcript = transcribe_audio(file_path)
-    uncon, con = calculate_avg_time_difference(result_tuple, transcript, 5)
+    uncon, con = calculate_statistics(result_tuple, transcript, 5)
 
-    execution_time = end_time - start_time - time_to_load_file
+    execution_time = end_simulation_time - start_simulation_time
     print(f"Execution time: {execution_time} seconds")
     print(f"Average transcription time: {uncon[0]} seconds")
     print(f"Min time difference: {uncon[1]} seconds")
