@@ -19,7 +19,7 @@ class Create_Audio_Buffer(ExecutionModule):
                             name="Create_Audio_Buffer"
                         )
         self.audio_data_buffer: List[OggS_Page] = []
-        self.last_n_seconds: int = 30
+        self.last_n_seconds: int = 10
         self.min_n_seconds: int = 1
         self.current_audio_buffer_seconds: float = 0
 
@@ -44,18 +44,12 @@ class Create_Audio_Buffer(ExecutionModule):
             # id_header_page, comment_header_pages = get_header_pages(self.header_buffer)
             id_header = audio.id_header
             comment_header = audio.comment_header
-            
-            print(f"ID Header Page: {id_header}")
-            print(f"Comment Header Pages: {comment_header}")
 
             if id_header and comment_header:
                 self.sample_rate = id_header.input_sample_rate
                 self.header_pages = []
                 self.header_pages.append(OggS_Page(id_header.page.raw_data))
                 self.header_pages.extend([OggS_Page(page.raw_data) for page in comment_header.pages])
-                
-                with open('output.bin', 'wb') as f:
-                         f.write(self.header_buffer)
             else:
                 dpm.message = "Could not find the header pages"
                 dpm.status = Status.EXIT
