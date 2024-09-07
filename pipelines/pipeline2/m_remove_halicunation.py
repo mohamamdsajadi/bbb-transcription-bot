@@ -22,7 +22,7 @@ class Remove_Hallucination(Module):
             name="Remove_Hallucination"
         )
         
-        self.max_distance = 5
+        self.max_distance = 10
         self.similarity_threshold = 0.95
 
     def init_module(self) -> None:
