@@ -93,5 +93,5 @@ class Local_Agreement(Module):
         if len(self.confirmed) > self.max_confirmed_words:
             self.confirmed = self.confirmed[-self.max_confirmed_words:]
         
-        dp.data.confirmed_words = self.confirmed
-        dp.data.unconfirmed_words = self.unconfirmed
+        dp.data.confirmed_words = self.confirmed.copy()
+        dp.data.unconfirmed_words = self.unconfirmed.copy()
