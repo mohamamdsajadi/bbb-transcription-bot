@@ -21,6 +21,7 @@ class AudioData:
     transcribed_segments: Optional[List[TextSegment]] = None # Transcribed segments as text with timestamps
     transcribed_text: Optional[str] = None                   # Full transcribed text
     transcribed_words: Optional[List[str]] = None            # List of transcribed words
+    cleaned_words: Optional[List[str]] = None                # List of transcribed words. Halicunation removed.
     confirmed_words: Optional[List[str]] = None              # List of confirmed words
     unconfirmed_words: Optional[List[str]] = None            # List of unconfirmed words
     translations: Optional[Dict[str, str]] = None            # Translations to target languages

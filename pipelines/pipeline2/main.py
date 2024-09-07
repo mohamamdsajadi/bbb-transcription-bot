@@ -16,6 +16,7 @@ from m_create_audio_buffer import Create_Audio_Buffer
 from m_faster_whisper import Faster_Whisper_transcribe
 from m_local_agreement import Local_Agreement
 from m_rate_limiter import Rate_Limiter
+from m_remove_halicunation import Remove_Hallucination
 from m_vad import VAD
 import data
 import logger
@@ -54,6 +55,7 @@ controllers = [
                     Convert_Audio(),
                     VAD(),
                     Faster_Whisper_transcribe(),
+                    Remove_Hallucination(),
                     Local_Agreement(),
                 ]
             )

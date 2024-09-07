@@ -27,10 +27,10 @@ class Local_Agreement(Module):
         pass
 
     def execute(self, dp: DataPackage[data.AudioData], dpc: DataPackageController, dpp: DataPackagePhase, dpm: DataPackageModule) -> None:
-        if not dp.data or dp.data.transcribed_words is None:
+        if not dp.data or dp.data.cleaned_words is None:
             raise Exception("No transcribed words found")
 
-        new_words = dp.data.transcribed_words
+        new_words = dp.data.cleaned_words
         
         def create_confirmed_and_unconfirmed_lists(new_words: List[str]) -> None:
             # Find the longest matching prefix between current_words and _unconfirmed_words
