@@ -82,9 +82,10 @@ def create_live_transcription_tuple(live_transcription: List[DataPackage[data.Au
     for dp in live_transcription:
         if dp.data:
             relative_time = dp.end_time - start_time
+            text = dp.data.transcribed_text
             confirmed_words = dp.data.confirmed_words
             unconfirmed_words = dp.data.unconfirmed_words
-            tuple_data = (relative_time, confirmed_words, unconfirmed_words)
+            tuple_data = (relative_time, text, confirmed_words, unconfirmed_words)
             return_tuple.append(tuple_data)
 
     return return_tuple
@@ -119,7 +120,7 @@ def calculate_statistics(live_transcription, transcript, offset=5):
         
         # Loop through the live transcription data
         for index, transcription in enumerate(live_transcription):
-            time_finished, confirmed, unconfirmed = transcription
+            time_finished, _, confirmed, unconfirmed = transcription
             current_time = time_finished
             
             # Find relevant segments around the current time
