@@ -31,7 +31,7 @@ class VoiceActivitySegmentation(VoiceActivityDetection):
     ) -> None:
         super().__init__(segmentation=segmentation, fscore=fscore, use_auth_token=use_auth_token, **inference_kwargs)
 
-    def apply(self, audio_waveform: np.ndarray, sr: int = 16000, hook: Optional[Callable] = None) -> Annotation:
+    def apply(self, audio_waveform: np.ndarray, sr: int = 16000, hook: Optional[Callable] = None) -> SlidingWindowFeature:
         """Apply voice activity detection to a NumPy array waveform.
 
         Parameters
@@ -87,6 +87,8 @@ class VAD(Module):
         self.model: Optional[VoiceActivitySegmentation] = None
         self.vad_segmentation_url = "https://whisperx.s3.eu-west-2.amazonaws.com/model_weights/segmentation/0b5b3216d60a2d32fc086b47ea8c67589aaeb26b7e07fcbe620d6d0b83e209ea/pytorch_model.bin"
 
+        self.last_time_spoken_offset: float = 1.5 # It will stop processing if no one has spoken in the last 5 seconds
+
         self.vad_onset = 0.500
         self.vad_offset = 0.363
         self.use_auth_token=None
@@ -105,18 +107,29 @@ class VAD(Module):
             raise Exception("No data found")
         if dp.data.audio_data is None:
             raise Exception("No audio data found")
+        if dp.data.audio_buffer_time is None:
+            raise Exception("No audio buffer time found")
         if not dp.data.audio_data_sample_rate:
             raise Exception("No sample rate found")
         
+        audio_time: float = dp.data.audio_buffer_time
+        
         # Perform voice activity detection
-        vad_result: Annotation = self.model.apply(dp.data.audio_data, sr=dp.data.audio_data_sample_rate)
+        vad_result: SlidingWindowFeature = self.model.apply(dp.data.audio_data, sr=dp.data.audio_data_sample_rate)
         
         # Merge VAD segments if necessary
         merged_segments: List[Dict[str, float]] = merge_chunks(vad_result, chunk_size=self.chunk_size)
         
-        if len(merged_segments) == 0:
+        last_time_spoken: float = 0.0
+        if len(merged_segments) > 0:
+            # detect if someone has spoken in the last 5 seconds
+            last_segment = merged_segments[-1]
+            last_time_spoken = last_segment['end']
+        
+        if len(merged_segments) == 0 or last_time_spoken < (audio_time - self.last_time_spoken_offset):
             dpm.message = "No voice detected"
             dpm.status = Status.EXIT
+            return
         
         dp.data.vad_result = merged_segments
         

@@ -14,6 +14,7 @@ class TextSegment:
 class AudioData:
     raw_audio_data: bytes                                    # Current audio chunk from stream
     audio_buffer: Optional[bytes] = None                     # Buffer of n seconds of raw audio data
+    audio_buffer_time: Optional[float] = None                # Time duration of the audio buffer
     audio_data: Optional[np.ndarray] = None                  # Audio data converted to mono waveform
     audio_data_sample_rate: Optional[int] = None             # Sample rate of the audio data after conversion
     vad_result: Optional[List[Dict[str, float]]] = None      # Voice activity detection result

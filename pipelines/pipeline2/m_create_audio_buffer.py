@@ -19,7 +19,7 @@ class Create_Audio_Buffer(ExecutionModule):
                             name="Create_Audio_Buffer"
                         )
         self.audio_data_buffer: List[OggS_Page] = []
-        self.last_n_seconds: int = 10
+        self.last_n_seconds: int = 30
         self.min_n_seconds: int = 1
         self.current_audio_buffer_seconds: float = 0
 
@@ -40,7 +40,6 @@ class Create_Audio_Buffer(ExecutionModule):
         if not self.header_pages:
             self.header_buffer += dp.data.raw_audio_data
             audio = Ogg_OPUS_Audio(self.header_buffer)
-            print(f"Header Buffer: {len(self.header_buffer)}")
             # id_header_page, comment_header_pages = get_header_pages(self.header_buffer)
             id_header = audio.id_header
             comment_header = audio.comment_header
@@ -82,6 +81,7 @@ class Create_Audio_Buffer(ExecutionModule):
             # Combine the audio buffer into a single audio package
             n_seconds_of_audio: bytes = self.header_buffer + b''.join([page.raw_data for page in self.audio_data_buffer])
             dp.data.raw_audio_data = n_seconds_of_audio
+            dp.data.audio_buffer_time = self.current_audio_buffer_seconds
         else:
             dpm.status = Status.EXIT
             dpm.message = "Not enough audio data to create a package"
