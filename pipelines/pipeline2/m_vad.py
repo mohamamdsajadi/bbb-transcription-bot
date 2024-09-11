@@ -1,5 +1,5 @@
 # m_vad.py
-from typing import Any, Callable, Dict, List, Optional, Text, Union
+from typing import Any, Callable, Dict, List, Optional, Text, Tuple, Union
 import hashlib
 import os
 import urllib
@@ -212,45 +212,46 @@ class Binarize:
         return active
 
 class SegmentX:
-    def __init__(self, start, end, speaker=None):
-        self.start = start
-        self.end = end
-        self.speaker = speaker
+    def __init__(self, start: float, end: float, speaker: str) -> None:
+        self.start: float = start
+        self.end: float = end
+        self.speaker: str = speaker
+
+from typing import List, Dict, Tuple, Union, Optional
 
 def merge_chunks(
-    segments,
-    chunk_size,
+    segments: SlidingWindowFeature,
+    chunk_size: float,
     onset: float = 0.5,
     offset: Optional[float] = None,
-):
+) -> List[Dict[str, Union[float, List[Tuple[float, float]]]]]:
     """
     Merge operation described in paper
     """
-    curr_end = 0
-    merged_segments = []
-    seg_idxs = []
-    speaker_idxs = []
+    curr_end: float = 0.0
+    merged_segments: List[Dict[str, Union[float, List[Tuple[float, float]]]]] = []
+    seg_idxs: List[Tuple[float, float]] = []
+    speaker_idxs: List[str] = []
 
     assert chunk_size > 0
     binarize = Binarize(max_duration=chunk_size, onset=onset, offset=offset)
     segments = binarize(segments)
-    segments_list = []
+    segments_list: List[SegmentX] = []
     for speech_turn in segments.get_timeline():
         segments_list.append(SegmentX(speech_turn.start, speech_turn.end, "UNKNOWN"))
 
     if len(segments_list) == 0:
         print("No active speech found in audio")
         return []
-    # assert segments_list, "segments_list is empty."
-    # Make sur the starting point is the start of the segment.
+    
     curr_start = segments_list[0].start
 
     for seg in segments_list:
-        if seg.end - curr_start > chunk_size and curr_end-curr_start > 0:
+        if seg.end - curr_start > chunk_size and curr_end - curr_start > 0:
             merged_segments.append({
                 "start": curr_start,
                 "end": curr_end,
-                "segments": seg_idxs,
+                "segments": seg_idxs,  # Now this is allowed
             })
             curr_start = seg.start
             seg_idxs = []
@@ -258,13 +259,16 @@ def merge_chunks(
         curr_end = seg.end
         seg_idxs.append((seg.start, seg.end))
         speaker_idxs.append(seg.speaker)
-    # add final
+    
+    # Add the final segment
     merged_segments.append({ 
-                "start": curr_start,
-                "end": curr_end,
-                "segments": seg_idxs,
-            })    
+        "start": curr_start,
+        "end": curr_end,
+        "segments": seg_idxs,
+    })
+    
     return merged_segments
+
 
 class VAD(Module):
     def __init__(self) -> None:
@@ -300,8 +304,8 @@ class VAD(Module):
             raise Exception("No audio data found")
         if dp.data.audio_buffer_time is None:
             raise Exception("No audio buffer time found")
-        # if dp.data.audio_data_sample_rate is None:
-        #     raise Exception("No sample rate found")
+        if dp.data.audio_data_sample_rate is None:
+            raise Exception("No sample rate found")
         
         # sample_rate: int = dp.data.audio_data_sample_rate
         audio_time: float = dp.data.audio_buffer_time
@@ -311,7 +315,7 @@ class VAD(Module):
         vad_result: SlidingWindowFeature = self.model.apply(audio, sr=dp.data.audio_data_sample_rate)
         
         # Merge VAD segments if necessary
-        merged_segments: List[Dict[str, float]] = merge_chunks(vad_result, chunk_size=audio_time)
+        merged_segments: List[Dict[str, float | List[Tuple[float, float]]]] = merge_chunks(vad_result, chunk_size=audio_time)
         
         dp.data.vad_result = merged_segments
         
@@ -319,7 +323,8 @@ class VAD(Module):
         if len(merged_segments) > 0:
             # detect if someone has spoken in the last 5 seconds
             last_segment = merged_segments[-1]
-            last_time_spoken = last_segment['end']
+            if type(last_segment['end']) == float:
+                last_time_spoken = last_segment['end']
         
         if len(merged_segments) == 0 or last_time_spoken < (audio_time - self.last_time_spoken_offset):
             dpm.message = "No voice detected"

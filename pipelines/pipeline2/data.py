@@ -27,7 +27,7 @@ class AudioData:
     audio_buffer_start_after: Optional[float] = None         # Time duration of the audio buffer start after the start of the audio stream
     audio_data: Optional[np.ndarray] = None                  # Audio data converted to mono waveform
     audio_data_sample_rate: Optional[int] = None             # Sample rate of the audio data after conversion
-    vad_result: Optional[List[Dict[str, float]]] = None      # Voice activity detection result
+    vad_result: Optional[List[Dict[str, float | List[Tuple[float, float]]]]] = None      # Voice activity detection result
     # vad_audio_result: Optional[np.ndarray] = None      # Voice activity detection result
     language: Optional[Tuple[str, float]] = None             # Detected language of the audio data (language code, probability)
     transcribed_segments: Optional[List[TextSegment]] = None # Transcribed segments as text with timestamps

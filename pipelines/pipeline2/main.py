@@ -2,7 +2,7 @@
 import os
 import threading
 import time
-from typing import List, Optional
+from typing import Dict, List, Optional, Tuple
 import json
 
 import ffmpeg # type: ignore
@@ -13,7 +13,7 @@ from stream_pipeline.data_package import DataPackage
 from stream_pipeline.pipeline import Pipeline, ControllerMode, PipelinePhase, PipelineController
 
 from Config import load_settings
-from StreamServer import Server
+from StreamServer import Server, Client as StreamClient
 from Client import Client
 from m_convert_audio import Convert_Audio
 from m_create_audio_buffer import Create_Audio_Buffer
@@ -173,7 +173,7 @@ instance = pipeline.register_instance()
 app = Flask(__name__)
 STATUS = "stopped" # starting, running, stopping, stopped
 @app.route('/health', methods=['GET'])
-def healthcheck():
+def healthcheck() -> Tuple[str, int]:
     global STATUS
     print(STATUS)
     if STATUS == "running":
@@ -181,7 +181,7 @@ def healthcheck():
     else:
         return STATUS, 503
 
-def main():
+def main() -> None:
     global STATUS
     STATUS = "starting"
     
@@ -192,14 +192,19 @@ def main():
     webserverthread.daemon = True  # This will ensure the thread stops when the main thread exits
     webserverthread.start()
 
-    client_dict = {}        # Dictionary with all connected clients
+    client_dict: Dict[StreamClient, Client] = {}        # Dictionary with all connected clients
     client_dict_mutex = threading.Lock() # Mutex to lock the client_dict
 
     # Create server
-    srv = Server(settings["HOST"], settings["TCPPORT"], settings["UDPPORT"], settings["SECRET_TOKEN"], 4096, 5, 10, 1024, settings["EXTERNALHOST"])
+    host = str(settings["HOST"])
+    tcp_port = int(settings["TCPPORT"])
+    udp_port = int(settings["UDPPORT"])
+    secret_token = str(settings["SECRET_TOKEN"])
+    external_host = str(settings["EXTERNALHOST"])
+    srv = Server(host, tcp_port, udp_port, secret_token, 4096, 5, 10, 1024, external_host)
 
     # Handle new connections and disconnections, timeouts and messages
-    def OnConnected(c):
+    def OnConnected(c: StreamClient) -> None:
         print(f"Connected by {c.tcp_address()}")
 
         # Create new client
@@ -210,7 +215,7 @@ def main():
             client_dict[c] = newclient
 
         # Handle disconnections
-        def ondisconnedted(c):
+        def ondisconnedted(c: StreamClient) -> None:
             print(f"Disconnected by {c.tcp_address()}")
             # Remove client from client_dict
             with client_dict_mutex:
@@ -219,7 +224,7 @@ def main():
         c.on_disconnected(ondisconnedted)
 
         # Handle timeouts
-        def ontimeout(c):
+        def ontimeout(c: StreamClient) -> None:
             print(f"Timeout by {c.tcp_address()}")
             # Remove client from client_dict
             with client_dict_mutex:
@@ -228,13 +233,17 @@ def main():
         c.on_timeout(ontimeout)
 
         # Handle messages
-        def onmsg(c, recv_data):
+        def onmsg(c: StreamClient, recv_data: bytes) -> None:
             # print(f"UDP from: {c.tcp_address()}")
             with client_dict_mutex:
                 if not c in client_dict:
                     print(f"Client {c.tcp_address()} not in list!")
                     return
                 client = client_dict[c]
+                
+                if client._instance is None:
+                    print(f"Client {c.tcp_address()} has no instance!")
+                    return
             
                 audio_data = data.AudioData(raw_audio_data=recv_data)
                 pipeline.execute(

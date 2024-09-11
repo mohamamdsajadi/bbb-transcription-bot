@@ -1,30 +1,33 @@
 import logging
 import threading
+from typing import Any, Callable, Dict, Tuple
 
 
 class EventHandler:
     """Class responsible for managing callbacks."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         logging.debug("Initializing EventHandler.")
-        self._callbacks = {}
+        self._callbacks: Dict[int, Callable[..., None]] = {}
         self._event_lock = threading.Lock()
+        self._next_id: int = 0
 
-    def add_event(self, callback):
+    def add_event(self, callback: Callable[..., None]) -> int:
         """Add a new event callback and return its unique ID."""
         with self._event_lock:
-            event_id = callback
+            event_id = self._next_id
+            self._next_id += 1
             logging.debug(f"Adding event with ID: {event_id}")
             self._callbacks[event_id] = callback
             return event_id
 
-    def remove_event(self, event_id):
+    def remove_event(self, event_id: int) -> None:
         """Remove an event callback using its ID."""
         logging.debug(f"Removing event with ID: {event_id}")
         with self._event_lock:
             self._callbacks.pop(event_id, None)
 
-    def emit(self, *args):
+    def emit(self, *args: Any) -> None:
         """Trigger all the registered callbacks with the provided arguments."""
         threads = []  # To keep track of the threads
 
