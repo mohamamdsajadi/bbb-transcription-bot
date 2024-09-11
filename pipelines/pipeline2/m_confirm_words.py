@@ -73,6 +73,9 @@ class Confirm_Words(Module):
 
         if len(self.confirmed) > 0:
             self.confirmed_end_time = self.confirmed[-1].end
+            
+        if len(self.confirmed) > self.max_confirmed_words:
+            self.confirmed = self.confirmed[-self.max_confirmed_words:]
         
         # Update data package confirmed and unconfirmed words
         dp.data.confirmed_words = self.confirmed.copy()
