@@ -18,13 +18,12 @@ from Client import Client
 from m_convert_audio import Convert_Audio
 from m_create_audio_buffer import Create_Audio_Buffer
 from m_faster_whisper import Faster_Whisper_transcribe
-from m_local_agreement import Local_Agreement
+from m_confirm_words import Confirm_Words
 from m_rate_limiter import Rate_Limiter
-from m_remove_halicunation import Remove_Hallucination
 from m_vad import VAD
 import data
 import logger
-from simulate_live_audio_stream import calculate_statistics, create_live_transcription_tuple, simulate_live_audio_stream, transcribe_audio
+# from simulate_live_audio_stream import calculate_statistics, create_live_transcription_tuple, simulate_live_audio_stream, transcribe_audio
 
 log = logger.setup_logging()
 
@@ -59,8 +58,7 @@ controllers = [
                     Convert_Audio(),
                     VAD(),
                     Faster_Whisper_transcribe(),
-                    Remove_Hallucination(),
-                    Local_Agreement(),
+                    Confirm_Words(),
                 ]
             )
         ]
@@ -96,16 +94,16 @@ def error_callback(dp: DataPackage[data.AudioData]) -> None:
 
 instance = pipeline.register_instance()
 
-def simulated_callback(raw_audio_data: bytes) -> None:
-    audio_data = data.AudioData(raw_audio_data=raw_audio_data)
-    pipeline.execute(
-                    audio_data, instance, 
-                    callback=callback, 
-                    exit_callback=exit_callback, 
-                    overflow_callback=overflow_callback, 
-                    outdated_callback=outdated_callback, 
-                    error_callback=error_callback
-                    )
+# def simulated_callback(raw_audio_data: bytes) -> None:
+#     audio_data = data.AudioData(raw_audio_data=raw_audio_data)
+#     pipeline.execute(
+#                     audio_data, instance, 
+#                     callback=callback, 
+#                     exit_callback=exit_callback, 
+#                     overflow_callback=overflow_callback, 
+#                     outdated_callback=outdated_callback, 
+#                     error_callback=error_callback
+#                     )
 
 # dev main():
 #     # Path to the input audio file
@@ -230,15 +228,23 @@ def main():
     srv.on_connected(OnConnected)
 
     def callback(dp: DataPackage[data.AudioData]) -> None:
-        if dp.data and dp.data.confirmed_words:
+        if dp.data and dp.data.confirmed_words is not None and dp.data.unconfirmed_words is not None:
             # log.info(f"Text: {dp.data.transcribed_text['words']}")
             processing_time = dp.total_time
             log.info(f"{processing_time:2f}:  {dp.data.confirmed_words} +++ {dp.data.unconfirmed_words}")
+            # log.info(f"{processing_time:2f}: cleaned_words:  {dp.data.transcribed_segments}")
+            
             
             # put dp.data.confirmed_words together with space
             text = ""
             for word in dp.data.confirmed_words:
-                text += word + " "
+                # if there is a . in this word add \n behind it
+                # if "." in word.word:
+                #     text += word.word + "\n"
+                # else:
+                text += word.word + " "
+            for word in dp.data.unconfirmed_words:
+                text += word.word + " "
             
             # get client
             with client_dict_mutex:

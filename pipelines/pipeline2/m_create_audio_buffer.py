@@ -19,7 +19,7 @@ class Create_Audio_Buffer(ExecutionModule):
                             name="Create_Audio_Buffer"
                         )
         self.audio_data_buffer: List[OggS_Page] = []
-        self.last_n_seconds: int = 30
+        self.last_n_seconds: int = 10
         self.min_n_seconds: int = 1
         self.current_audio_buffer_seconds: float = 0
 
@@ -28,6 +28,7 @@ class Create_Audio_Buffer(ExecutionModule):
         self.header_buffer: bytes = b''
         self.header_pages: Optional[List[OggS_Page]] = None
         self.sample_rate: int = 0
+        self.start_of_buffer_time: float = 0.0 # Relative time since the start of the audio stream.
 
     def execute(self, dp: DataPackage[data.AudioData], dpc: DataPackageController, dpp: DataPackagePhase, dpm: DataPackageModule) -> None:
         if not dp.data:
@@ -77,11 +78,13 @@ class Create_Audio_Buffer(ExecutionModule):
                 next_page_granule_position = self.audio_data_buffer[0].granule_position if len(self.audio_data_buffer) > 0 else pop_page_granule_position
                 pop_page_duration = calculate_page_duration(next_page_granule_position, pop_page_granule_position, self.sample_rate)
                 self.current_audio_buffer_seconds -= pop_page_duration
+                self.start_of_buffer_time = self.start_of_buffer_time + pop_page_duration
 
             # Combine the audio buffer into a single audio package
             n_seconds_of_audio: bytes = self.header_buffer + b''.join([page.raw_data for page in self.audio_data_buffer])
             dp.data.raw_audio_data = n_seconds_of_audio
             dp.data.audio_buffer_time = self.current_audio_buffer_seconds
+            dp.data.audio_buffer_start_after = self.start_of_buffer_time
         else:
             dpm.status = Status.EXIT
             dpm.message = "Not enough audio data to create a package"
