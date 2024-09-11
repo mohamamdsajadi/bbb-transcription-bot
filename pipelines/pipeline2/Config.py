@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 def load_settings():
     # Load environment variables from .env file, if available
-    load_dotenv()
+    load_dotenv(override=True) # Sometimes vscode loads the .env in the wrong way, so when starting this in vscode it will load the wrong vars. Thats why using override=True
 
     # if the config is valid
     valid_config = True
@@ -77,8 +77,8 @@ def load_settings():
         # 'TASK': get_variable('TRANSCRIPTION_SERVER_TASK', "transcribe", validate_task),
         'HOST': get_variable('TRANSCRIPTION_SERVER_HOST', "0.0.0.0"),
         'EXTERNALHOST': get_variable('TRANSCRIPTION_SERVER_EXTERNAL_HOST', "127.0.0.1"),
-        'TCPPORT': get_variable('TRANSCRIPTION_SERVER_PORT_TCP', 5000, validate_int),
-        'UDPPORT': get_variable('TRANSCRIPTION_SERVER_PORT_UDP', 5001, validate_int),
+        'TCPPORT': get_variable('TRANSCRIPTION_SERVER_PORT_TCP', "5000", validate_int),
+        'UDPPORT': get_variable('TRANSCRIPTION_SERVER_PORT_UDP', "5001", validate_int),
         'SECRET_TOKEN': get_variable('TRANSCRIPTION_SERVER_SECRET', "your_secret_token"),
         # 'RAM_DISK_PATH': get_variable('TRANSCRIPTION_SERVER_RAM_DISK_PATH', "/mnt/ramdisk", validate_path),
         'HEALTH_CHECK_PORT': get_variable('TRANSCRIPTION_SERVER_HEALTH_CHECK_PORT', 8001, validate_int),
