@@ -46,7 +46,21 @@ controllers = [
             )
         ]
     ),
-
+    PipelineController(
+        mode=ControllerMode.FIRST_WINS,
+        max_workers=5,
+        queue_size=2,
+        name="AudioPreprocessingController",
+        phases=[
+            PipelinePhase(
+                name="VADPhase",
+                modules=[
+                    Convert_Audio(),
+                    VAD(),
+                ]
+            )
+        ]
+    ),
     PipelineController(
         mode=ControllerMode.FIRST_WINS,
         max_workers=1,
@@ -55,9 +69,19 @@ controllers = [
             PipelinePhase(
                 name="WhisperPhase",
                 modules=[
-                    Convert_Audio(),
-                    VAD(),
                     Faster_Whisper_transcribe(),
+                ]
+            )
+        ]
+    ),
+    PipelineController(
+        mode=ControllerMode.NOT_PARALLEL,
+        max_workers=1,
+        name="OutputController",
+        phases=[
+            PipelinePhase(
+                name="OutputPhase",
+                modules=[
                     Confirm_Words(),
                 ]
             )
