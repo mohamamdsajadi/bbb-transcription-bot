@@ -28,6 +28,7 @@ class AudioData:
     audio_data: Optional[np.ndarray] = None                  # Audio data converted to mono waveform
     audio_data_sample_rate: Optional[int] = None             # Sample rate of the audio data after conversion
     vad_result: Optional[List[Dict[str, float]]] = None      # Voice activity detection result
+    # vad_audio_result: Optional[np.ndarray] = None      # Voice activity detection result
     language: Optional[Tuple[str, float]] = None             # Detected language of the audio data (language code, probability)
     transcribed_segments: Optional[List[TextSegment]] = None # Transcribed segments as text with timestamps
     # cleaned_words: Optional[List[str]] = None                # List of transcribed words. Halicunation removed.

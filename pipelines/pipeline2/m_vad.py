@@ -285,7 +285,6 @@ class VAD(Module):
         self.vad_offset = 0.363
         self.use_auth_token=None
         self.model_fp=None
-        self.chunk_size = 30.0
 
     def init_module(self) -> None:
         log.info(f"Loading model vad...")
@@ -301,16 +300,20 @@ class VAD(Module):
             raise Exception("No audio data found")
         if dp.data.audio_buffer_time is None:
             raise Exception("No audio buffer time found")
-        if not dp.data.audio_data_sample_rate:
-            raise Exception("No sample rate found")
+        # if dp.data.audio_data_sample_rate is None:
+        #     raise Exception("No sample rate found")
         
+        # sample_rate: int = dp.data.audio_data_sample_rate
         audio_time: float = dp.data.audio_buffer_time
+        audio: np.ndarray = dp.data.audio_data
         
         # Perform voice activity detection
-        vad_result: SlidingWindowFeature = self.model.apply(dp.data.audio_data, sr=dp.data.audio_data_sample_rate)
+        vad_result: SlidingWindowFeature = self.model.apply(audio, sr=dp.data.audio_data_sample_rate)
         
         # Merge VAD segments if necessary
-        merged_segments: List[Dict[str, float]] = merge_chunks(vad_result, chunk_size=self.chunk_size)
+        merged_segments: List[Dict[str, float]] = merge_chunks(vad_result, chunk_size=audio_time)
+        
+        dp.data.vad_result = merged_segments
         
         last_time_spoken: float = 0.0
         if len(merged_segments) > 0:
@@ -323,7 +326,19 @@ class VAD(Module):
             dpm.status = Status.EXIT
             return
         
-        dp.data.vad_result = merged_segments
+        # # Build one audio with only the voice segments from the VAD
+        # audio_segments: List[np.ndarray] = []
+        # for i, segment in enumerate(merged_segments):
+        #     start_time: float = segment['start']
+        #     end_time: float = segment['end']
+
+        #     # Extract only the relevant segment based on start and end times
+        #     start_sample: int = int(start_time * sample_rate)
+        #     end_sample: int = int(end_time * sample_rate)
+        #     audio_segments.append(audio[start_sample:end_sample])
+            
+
+        # dp.data.vad_audio_result = np.concatenate(audio_segments)
         
     
 
