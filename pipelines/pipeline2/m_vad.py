@@ -55,11 +55,19 @@ class VoiceActivitySegmentation(VoiceActivityDetection):
             hook("start", None, file=None)
 
         # Convert numpy array to PyTorch tensor
-        waveform_tensor = torch.tensor(audio_waveform[None, :], dtype=torch.float32)  # Add batch dimension
+        waveform_tensor = torch.tensor(audio_waveform, dtype=torch.float32)
+
+        # Ensure waveform_tensor is 2D: (channel, time)
+        if waveform_tensor.ndim == 1:
+            # If the audio is mono, add a channel dimension
+            waveform_tensor = waveform_tensor.unsqueeze(0)  # Shape becomes (1, time)
+        elif waveform_tensor.ndim > 2:
+            # If the audio has more than 2 dimensions, it's invalid
+            raise ValueError(f"Invalid audio waveform shape: {waveform_tensor.shape}")
 
         # Prepare the input as a dictionary with waveform (tensor) and sample rate
         input_dict = {
-            "waveform": waveform_tensor,  # Use the PyTorch tensor here
+            "waveform": waveform_tensor,
             "sample_rate": sr
         }
 
@@ -71,6 +79,7 @@ class VoiceActivitySegmentation(VoiceActivityDetection):
             hook("segmentation", segmentations, file=None)
 
         return segmentations
+
 
 
 
