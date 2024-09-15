@@ -1,4 +1,5 @@
 # m_local_agreement.py
+import difflib
 from typing import List, Optional, Tuple
 import unicodedata
 
@@ -19,6 +20,7 @@ class Confirm_Words(Module):
             ),
             name="Confirm_Words"
         )
+        self.offset = 0.3
         self.max_confirmed_words = 0
         self.confirmed: List[data.Word] = []  # Buffer to store committed words
 
@@ -29,7 +31,11 @@ class Confirm_Words(Module):
     def init_module(self) -> None:
         pass
 
-    def is_similar(self, word1: str, word2: str, max_diff_chars: int = -1) -> bool:
+    def similarity_difflib(self, wort1, wort2) -> float:
+        matcher = difflib.SequenceMatcher(None, wort1, wort2)
+        return matcher.ratio()
+
+    def is_similar(self, word1: str, word2: str, max_diff_percantage: float = -1.0) -> bool:
         # Lowercase the words
         word1_l = word1.lower()
         word2_l = word2.lower()
@@ -45,14 +51,18 @@ class Confirm_Words(Module):
         word1_clean = remove_symbols(word1_l)
         word2_clean = remove_symbols(word2_l)
 
-        if max_diff_chars == -1:
+        if max_diff_percantage == -1.0:
             return word1_clean == word2_clean
         
-        # Calculate the number of different characters between word1 and word2
-        diff_chars = sum(1 for a, b in zip(word1_clean, word2_clean) if a != b) + abs(len(word1_clean) - len(word2_clean))
+        diff = self.similarity_difflib(word1_clean, word2_clean)
+
+        return diff >= max_diff_percantage
+
+        # # Calculate the number of different characters between word1 and word2
+        # diff_chars = sum(1 for a, b in zip(word1_clean, word2_clean) if a != b) + abs(len(word1_clean) - len(word2_clean))
         
-        # Return True if the number of different characters is within the allowed maximum
-        return diff_chars <= max_diff_chars
+        # # Return True if the number of different characters is within the allowed maximum
+        # return diff_chars <= max_diff_chars
 
     def find_word(self, start: float, end: float, words: List[data.Word], offset: float = 0.3) -> Optional[data.Word]:
         for word in words:
@@ -63,6 +73,13 @@ class Confirm_Words(Module):
     def execute(self, dp: DataPackage[data.AudioData], dpc: DataPackageController, dpp: DataPackagePhase, dpm: DataPackageModule) -> None:
         if not dp.data or dp.data.transcribed_segments is None:
             raise Exception("No transcribed words found")
+        if dp.data.audio_buffer_start_after is None:
+            raise Exception("No audio buffer start time found")
+        if dp.data.audio_buffer_time is None:
+            raise Exception("No audio buffer time found")
+        
+        audio_buffer_start_after = dp.data.audio_buffer_start_after
+        audio_buffer_time = dp.data.audio_buffer_time
         
         # Collect new words from the transcribed segments
         new_words: List[data.Word] = []
@@ -71,21 +88,19 @@ class Confirm_Words(Module):
                 continue
             new_words.extend(segment.words)
 
-        only_words = [word.word for word in new_words]
-        print(only_words)
+        # only_words = [word.word for word in new_words]
+        # print(only_words)
             
         if len(new_words) == 0:
             dp.data.confirmed_words = self.confirmed.copy()
             dp.data.unconfirmed_words = []
             return
-        
-        newest_word_end_time = new_words[-1].end
 
         # 1. Split in confirmed, unconfirmed and new words
         new_confirmed: List[data.Word] = []
         new_unconfirmed: List[data.Word] = []
         for new_word in new_words:
-            if new_word.start < self.confirmed_end_time:
+            if new_word.start < self.confirmed_end_time - self.offset:
                 new_confirmed.append(new_word)
             else:
                 new_unconfirmed.append(new_word)
@@ -93,32 +108,35 @@ class Confirm_Words(Module):
         # 2. Check each new_unconfirmed word if it's older than confirm_if_older_then seconds
         words_to_confirm = []
         for new_word in new_unconfirmed:
-            if newest_word_end_time - new_word.end >= self.confirm_if_older_then:
+            if audio_buffer_start_after + audio_buffer_time - new_word.end >= self.confirm_if_older_then:
                 self.confirmed.append(new_word)
                 words_to_confirm.append(new_word)
 
         # Remove confirmed words from unconfirmed list
-        for word in words_to_confirm:
-            new_unconfirmed.remove(word)
+        # for word in words_to_confirm:
+        #     new_unconfirmed.remove(word)
 
         # Find words which are in new_confirmed and not in confirmed. Use simular
-        time_tolerance = 0.8
-        for new_word in list(reversed(new_confirmed)):
-            found = False
-            for confirmed_word in list(reversed(list(self.confirmed))):
-                if abs(confirmed_word.start - new_word.start) <= time_tolerance and abs(confirmed_word.end - new_word.end) <= time_tolerance:
-                    if self.is_similar(confirmed_word.word, new_word.word):
-                        found = True
+        # time_tolerance = 0.5
+        # for new_word in list(reversed(new_confirmed)):
+        #     found = False
+        #     for confirmed_word in list(reversed(list(self.confirmed))):
+        #         if abs(confirmed_word.start - new_word.start) <= time_tolerance and abs(confirmed_word.end - new_word.end) <= time_tolerance:
+        #             if self.is_similar(confirmed_word.word, new_word.word):
+        #                 found = True
 
-                        if confirmed_word.word != new_word.word and confirmed_word.probability - 0.2 < new_word.probability:
-                            confirmed_word.word = new_word.word
-                            confirmed_word.start = new_word.start
-                            confirmed_word.end = new_word.end
-                            confirmed_word.probability = new_word.probability
+        #                 if confirmed_word.word != new_word.word and confirmed_word.probability - 0.1 < new_word.probability:
+        #                     # print(f"Word changed: {confirmed_word.word} -> {new_word.word}")
+        #                     confirmed_word.word = new_word.word
+        #                     confirmed_word.start = new_word.start
+        #                     confirmed_word.end = new_word.end
+        #                     confirmed_word.probability = new_word.probability
 
-                        break
-            if not found:
-                self.confirmed.append(new_word)
+        #                 break
+        #     # if not found:
+        #     #     # if word isnt older then 10s
+        #     #     if new_word.end - audio_buffer_start_after > 20:
+        #     #         self.confirmed.append(new_word)
 
         # Remove words from confirmed which are not confidant enough < 0.5
         # self.confirmed = [word for word in self.confirmed if word.probability >= 0.6]
@@ -130,7 +148,7 @@ class Confirm_Words(Module):
         to_remove_list = []
         for i in range(len(self.confirmed) - 1):
             if self.confirmed[i].end > self.confirmed[i + 1].start:
-                if self.is_similar(self.confirmed[i].word, self.confirmed[i + 1].word, 1):
+                if self.is_similar(self.confirmed[i].word, self.confirmed[i + 1].word, 0.7):
                     to_remove_list.append(i)
                     i = i + 1
 
@@ -151,5 +169,7 @@ class Confirm_Words(Module):
             self.confirmed = self.confirmed[-self.max_confirmed_words:]
         
         # Update data package confirmed and unconfirmed words
+        # only_words = [word.word for word in self.confirmed]
+        # print(only_words)
         dp.data.confirmed_words = self.confirmed.copy()
         dp.data.unconfirmed_words = new_unconfirmed
