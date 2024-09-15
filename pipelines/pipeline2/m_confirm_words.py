@@ -19,7 +19,7 @@ class Confirm_Words(Module):
             ),
             name="Confirm_Words"
         )
-        self.max_confirmed_words = 50
+        self.max_confirmed_words = 0
         self.confirmed: List[data.Word] = []  # Buffer to store committed words
 
         self.confirmed_end_time: float = 0.0
@@ -28,6 +28,28 @@ class Confirm_Words(Module):
 
     def init_module(self) -> None:
         pass
+
+    def is_similar(self, word1: str, word2: str, max_diff_chars: int = 1) -> bool:
+        # Lowercase the words
+        word1_l = word1.lower()
+        word2_l = word2.lower()
+        
+        # Remove symbols and punctuation characters
+        def remove_symbols(word: str) -> str:
+            # Filter out characters classified as punctuation or symbols
+            return ''.join(
+                char for char in word 
+                if not unicodedata.category(char).startswith(('P', 'S'))
+            )
+        
+        word1_clean = remove_symbols(word1_l)
+        word2_clean = remove_symbols(word2_l)
+        
+        # Calculate the number of different characters between word1 and word2
+        diff_chars = sum(1 for a, b in zip(word1_clean, word2_clean) if a != b) + abs(len(word1_clean) - len(word2_clean))
+        
+        # Return True if the number of different characters is within the allowed maximum
+        return diff_chars <= max_diff_chars
 
     def execute(self, dp: DataPackage[data.AudioData], dpc: DataPackageController, dpp: DataPackagePhase, dpm: DataPackageModule) -> None:
         if not dp.data or dp.data.transcribed_segments is None:
@@ -66,6 +88,27 @@ class Confirm_Words(Module):
         # Remove confirmed words from unconfirmed list
         for word in words_to_confirm:
             new_unconfirmed.remove(word)
+
+        # Find words which are in new_confirmed and not in confirmed. Use simular
+        for new_word in list(reversed(new_confirmed)):
+            found = False
+            for confirmed_word in list(reversed(list(self.confirmed))):
+                if self.is_similar(confirmed_word.word, new_word.word):
+                    found = True
+                    break
+            if not found:
+                self.confirmed.append(new_word)
+
+        # Modify confirmed words if they are in the same time range -+offset and are similar
+        # start from the end of the list
+        # for a, new_word in enumerate(list(reversed(list(new_confirmed)))):
+        #     for b, confirmed_word in enumerate(list(reversed(list(self.confirmed)))):
+        #         if abs(confirmed_word.start - new_word.start) <= 0.1 and abs(confirmed_word.end - new_word.end) <= 0.1:
+        #             if self.is_similar(confirmed_word.word, new_word.word):
+        #                 self.confirmed[-b] = new_word
+
+        # sort confirmed words by start time
+        self.confirmed = sorted(self.confirmed, key=lambda x: x.start)
 
         # Ensure that the number of confirmed words does not exceed the max_confirmed_words limit
         if len(self.confirmed) > self.max_confirmed_words:
