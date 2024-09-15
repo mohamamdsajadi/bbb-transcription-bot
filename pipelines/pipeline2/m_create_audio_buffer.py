@@ -19,7 +19,7 @@ class Create_Audio_Buffer(ExecutionModule):
                             name="Create_Audio_Buffer"
                         )
         self.audio_data_buffer: List[OggS_Page] = []
-        self.last_n_seconds: int = 10
+        self.last_n_seconds: int = 30
         self.min_n_seconds: int = 1
         self.current_audio_buffer_seconds: float = 0
 
