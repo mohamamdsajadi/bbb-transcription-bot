@@ -138,8 +138,8 @@ class Confirm_Words(Module):
         #     #     if new_word.end - audio_buffer_start_after > 20:
         #     #         self.confirmed.append(new_word)
 
-        # Remove words from confirmed which are not confidant enough < 0.5
-        # self.confirmed = [word for word in self.confirmed if word.probability >= 0.6]
+        # Remove words from confirmed which are not confidant enough < 0.2
+        self.confirmed = [word for word in self.confirmed if word.probability >= 0.2]
 
         # sort confirmed words by start time
         self.confirmed = sorted(self.confirmed, key=lambda x: x.start)
