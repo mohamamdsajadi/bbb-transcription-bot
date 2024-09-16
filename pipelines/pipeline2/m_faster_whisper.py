@@ -43,17 +43,15 @@ class Faster_Whisper_transcribe(Module):
             raise Exception("No data found")
         if dp.data.audio_data is None:
             raise Exception("No audio data found")
-        # if not dp.data.vad_result:
-        #     raise Exception("No audio data from VAD found")
-        # if not dp.data.audio_data_sample_rate:
-        #     raise Exception("No sample rate found")
+        if not dp.data.vad_result:
+            raise Exception("No audio data from VAD found")
         if dp.data.audio_buffer_start_after is None:
             raise Exception("No audio buffer start after found")
         
         
         audio_buffer_start_after = dp.data.audio_buffer_start_after
         audio = dp.data.audio_data
-        segments, info = self.batched_model.transcribe(audio, batch_size=self.batch_size, word_timestamps=True)
+        segments, info = self.batched_model.transcribe(audio, batch_size=self.batch_size, word_timestamps=True, vad_segments=dp.data.vad_result)
 
         result = []
         for segment in segments:
