@@ -10,7 +10,7 @@ import ffmpeg # type: ignore
 from prometheus_client import start_http_server
 from flask import Flask
 
-from stream_pipeline.data_package import DataPackage
+from stream_pipeline.data_package import DataPackage, DataPackageController, DataPackagePhase, DataPackageModule
 from stream_pipeline.pipeline import Pipeline, ControllerMode, PipelinePhase, PipelineController
 
 from Config import load_settings
@@ -98,7 +98,10 @@ def callback(dp: DataPackage[data.AudioData]) -> None:
     if dp.data and dp.data.transcribed_segments:
         # log.info(f"Text: {dp.data.transcribed_text['words']}")
         processing_time = dp.total_time
-        # log.info(f"{processing_time:2f}:  {dp.data.confirmed_words} +++ {dp.data.unconfirmed_words}")
+        log.info(f"{processing_time:2f}:  {dp.data.confirmed_words} +++ {dp.data.unconfirmed_words}")
+        # if dp.data.confirmed_words is not None:
+        #     only_words = [w.word for w in dp.data.confirmed_words]
+        #     print(only_words)
         with result_mutex:
             result.append(dp)
     pass
@@ -130,26 +133,26 @@ def simulated_callback(raw_audio_data: bytes) -> None:
                     error_callback=error_callback
                     )
 
-def main():
+def main() -> None:
     # Path to the input audio file
     file_path = 'audio/audio.ogg'  # Replace with your file path
     
     # Simulate live audio stream (example usage)
-    simulate_live_audio_stream(file_path, simulated_callback)
+    # simulate_live_audio_stream(file_path, simulated_callback)
     
-    time.sleep(5)
+    # time.sleep(5)
 
-    # Save the live transcription as a JSON
-    with result_mutex:
-        da: List[data.AudioData] = [dp.data for dp in result]
-        with open('text.pkl', 'wb') as file:
-            pickle.dump(da, file)
+    # # Save the live transcription as a JSON
+    # with result_mutex:
+    #     da: List[data.AudioData] = [dp.data for dp in result]
+    #     with open('text.pkl', 'wb') as file:
+    #         pickle.dump(da, file)
 
     # Load the JSON file
-    with open('text.pkl', 'rb') as file:
-        live_data: List[data.AudioData] = pickle.load(file)
+    with open('audio/audio.pkl', 'rb') as file:
+        live_data: List[data.AudioData] = pickle.load(file) # type: ignore
 
-    live_dps: List[DataPackage[data.AudioData]] = []
+    live_dps: List[DataPackage[data.AudioData]] = [] # type: ignore
     for da in live_data:
         new_dp = DataPackage[data.AudioData]()
         new_dp.data=da
@@ -157,51 +160,55 @@ def main():
 
     cw = Confirm_Words()
     for live_dp in live_dps:
-        live_dp.data.confirmed_words = None
-        live_dp.data.unconfirmed_words = None
-        cw.execute(live_dp, None, None, None)
+        if live_dp.data is not None:
+            live_dp.data.confirmed_words = None
+            live_dp.data.unconfirmed_words = None
+        cw.execute(live_dp, DataPackageController(), DataPackagePhase(), DataPackageModule())
 
+    if live_dps[-1].data is None:
+        raise ValueError("No data found")
     live_words = live_dps[-1].data.confirmed_words
 
     # safe transcript and result_tuple as json in a file
     transcript_words = transcribe_audio(file_path)
+    if live_words is None:
+        raise ValueError("No data found")
     stat = stats(live_words, transcript_words)
-    # stats = compute_statistics(live_words, transcript_words[:len(live_words)])
 
 
-    print("live")
-    # print each word in an array.
-    words = []
-    for word in live_words:
-        words.append(word.word)
-        # words.append((word.word, word.start, word.end, word.probability))
-        # words.append((word.word, word.probability))
-    print(words)
-    print(f"\n----------------------------------------------------\n")
-    print("transcript")
-    transcript = []
-    for word in transcript_words:
-        transcript.append(word.word)
-    print(transcript)
+#     print("live")
+#     # print each word in an array.
+#     words = []
+#     for word in live_words:
+#         words.append(word.word)
+#         # words.append((word.word, word.start, word.end, word.probability))
+#         # words.append((word.word, word.probability))
+#     print(words)
+#     print(f"\n----------------------------------------------------\n")
+#     print("transcript")
+#     transcript = []
+#     for word in transcript_words:
+#         transcript.append(word.word)
+#     print(transcript)
     print(f"\n----------------------------------------------------\n")
     print("stats")
     print(stat)
 
-    # uncon, con = calculate_statistics(live_words, transcript, 5)
+#     # uncon, con = calculate_statistics(live_words, transcript, 5)
 
-    # execution_time = end_simulation_time - start_simulation_time
-    # print(f"Execution time: {execution_time} seconds")
-    # print(f"Average transcription time: {uncon[0]} seconds")
-    # print(f"Min time difference: {uncon[1]} seconds")
-    # print(f"Max time difference: {uncon[2]} seconds")
-    # print(f"Median: {uncon[3]} seconds")
-    # print(f"Standard deviation: {uncon[4]} seconds")
-    # print("----------------------------------------------------")
-    # print(f"Average confirmation time: {con[0]} seconds")
-    # print(f"Min time difference: {con[1]} seconds")
-    # print(f"Max time difference: {con[2]} seconds")
-    # print(f"Median: {con[3]} seconds")
-    # print(f"Standard deviation: {con[4]} seconds")
+#     # execution_time = end_simulation_time - start_simulation_time
+#     # print(f"Execution time: {execution_time} seconds")
+#     # print(f"Average transcription time: {uncon[0]} seconds")
+#     # print(f"Min time difference: {uncon[1]} seconds")
+#     # print(f"Max time difference: {uncon[2]} seconds")
+#     # print(f"Median: {uncon[3]} seconds")
+#     # print(f"Standard deviation: {uncon[4]} seconds")
+#     # print("----------------------------------------------------")
+#     # print(f"Average confirmation time: {con[0]} seconds")
+#     # print(f"Min time difference: {con[1]} seconds")
+#     # print(f"Max time difference: {con[2]} seconds")
+#     # print(f"Median: {con[3]} seconds")
+#     # print(f"Standard deviation: {con[4]} seconds")
 
 # # Health check http sever
 # app = Flask(__name__)

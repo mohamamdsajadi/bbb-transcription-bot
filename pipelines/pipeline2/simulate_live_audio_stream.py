@@ -1,10 +1,11 @@
+from dataclasses import dataclass
 import difflib
 import statistics
 import time
 import unicodedata
 import torch
 from difflib import SequenceMatcher
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 from faster_whisper import WhisperModel, BatchedInferencePipeline # type: ignore
 import torch
@@ -74,40 +75,53 @@ def transcribe_audio(audio_path: str) -> List[data.Word]:
     return result
 
 
-def compute_statistics(live: List[data.Word], transcript: List[data.Word]) -> Dict[str, float]:
+@dataclass
+class Statistics:
+    deletions: List[data.Word]
+    substitutions: List[Tuple[data.Word, data.Word]]
+    insertions: List[data.Word]
+    wer: float
+    avg_delta_start: float
+    avg_delta_end: float
+
+def compute_statistics(
+    live: List[data.Word], 
+    transcript: List[data.Word]
+) -> Statistics:
+    
     if len(live) == 0:
         raise ValueError("The 'live' list is empty")
     if len(transcript) == 0:
         raise ValueError("The 'transcript' list is empty")
 
-    last_live_word = live[-1]
+    # Variables with types
+    last_live_word: data.Word = live[-1]
 
-    # only use transcript until the last live word
-    transcript = [word for word in transcript if word.end <= last_live_word.end]
+    # Only use transcript until the last live word
+    new_transcript: List[data.Word] = [word for word in transcript if word.end <= last_live_word.end]
 
     # Extract word strings from the Word objects, stripping leading/trailing spaces
-    live_words = [w.word.strip() for w in live]
-    transcript_words = [w.word.strip() for w in transcript]
+    live_words: List[str] = [w.word.strip() for w in live]
+    transcript_words: List[str] = [w.word.strip() for w in new_transcript]
 
     # Create a SequenceMatcher object to compare the two sequences
-    sm = difflib.SequenceMatcher(None, transcript_words, live_words)
+    sm: difflib.SequenceMatcher = difflib.SequenceMatcher(None, transcript_words, live_words)
 
-    # Initialize counters for substitutions, deletions, insertions
-    S = 0  # Substitutions
-    D = 0  # Deletions
-    I = 0  # Insertions
-    N = len(transcript_words)  # Total words in transcript (reference)
+    # Lists to store deletions, substitutions, and insertions
+    deletion_list: List[data.Word] = []
+    substitution_list: List[Tuple[data.Word, data.Word]] = []
+    insertion_list: List[data.Word] = []
 
     # Lists to store time differences for matching words
-    delta_starts = []
-    delta_ends = []
+    delta_starts: List[float] = []
+    delta_ends: List[float] = []
 
     # Process the opcodes to align the sequences and identify operations
     for tag, i1, i2, j1, j2 in sm.get_opcodes():
         if tag == 'equal':
             # Words match; calculate time differences
             for idx_transcript, idx_live in zip(range(i1, i2), range(j1, j2)):
-                word_transcript = transcript[idx_transcript]
+                word_transcript = new_transcript[idx_transcript]
                 word_live = live[idx_live]
                 delta_start = word_live.start - word_transcript.start
                 delta_end = word_live.end - word_transcript.end
@@ -115,44 +129,49 @@ def compute_statistics(live: List[data.Word], transcript: List[data.Word]) -> Di
                 delta_ends.append(delta_end)
         elif tag == 'replace':
             # Substitution
-            len_transcript = i2 - i1
-            len_live = j2 - j1
-            num_substitutions = max(len_transcript, len_live)
-            S += num_substitutions
+            substitutions: List[Tuple[data.Word, data.Word]] = [
+                (new_transcript[idx], live[idx2]) for idx, idx2 in zip(range(i1, i2), range(j1, j2))
+            ]
+            substitution_list.extend(substitutions)
         elif tag == 'delete':
             # Deletion
-            D += i2 - i1
+            deletions: List[data.Word] = new_transcript[i1:i2]
+            deletion_list.extend(deletions)
         elif tag == 'insert':
             # Insertion
-            I += j2 - j1
+            insertions: List[data.Word] = live[j1:j2]
+            insertion_list.extend(insertions)
 
     # Compute Word Error Rate (WER)
-    WER = (S + D + I) / N if N > 0 else 0
+    N: int = len(transcript_words)  # Total words in transcript (reference)
+    S: int = len(substitution_list)  # Number of substitutions
+    D: int = len(deletion_list)  # Number of deletions
+    I: int = len(insertion_list)  # Number of insertions
+    WER: float = (S + D + I) / N if N > 0 else 0
 
     # Compute average differences in start and end times (in seconds)
-    avg_delta_start = sum(abs(ds) for ds in delta_starts) / len(delta_starts) if delta_starts else 0
-    avg_delta_end = sum(abs(de) for de in delta_ends) / len(delta_ends) if delta_ends else 0
+    avg_delta_start: float = sum(abs(ds) for ds in delta_starts) / len(delta_starts) if delta_starts else 0
+    avg_delta_end: float = sum(abs(de) for de in delta_ends) / len(delta_ends) if delta_ends else 0
 
     # Print out the results
     print(f"Number of words missing in live (Deletions): {D}")
     print(f"Number of wrong words in live (Substitutions): {S}")
     print(f"Number of extra words in live (Insertions): {I}")
-    print(f"Average difference in start times: {avg_delta_start*1000:.1f} milliseconds")
-    print(f"Average difference in end times: {avg_delta_end*1000:.1f} milliseconds")
-    print(f"Word Error Rate (WER): {WER*100:.1f}%")
+    print(f"Average difference in start times: {avg_delta_start * 1000:.1f} milliseconds")
+    print(f"Average difference in end times: {avg_delta_end * 1000:.1f} milliseconds")
+    print(f"Word Error Rate (WER): {WER * 100:.1f}%")
 
-    # Return the statistics as a dictionary
-    return {
-        'deletions': D,
-        'substitutions': S,
-        'insertions': I,
-        'wer': WER,
-        'avg_delta_start': avg_delta_start,
-        'avg_delta_end': avg_delta_end,
-    }
+    # Return the statistics as a dataclass instance
+    return Statistics(
+        deletions=deletion_list,
+        substitutions=substitution_list,
+        insertions=insertion_list,
+        wer=WER,
+        avg_delta_start=avg_delta_start,
+        avg_delta_end=avg_delta_end,
+    )
 
-def stats(live: List[data.Word], transcript: List[data.Word]) -> Tuple[Dict[str, float], Dict[str, float]]:
-
+def stats(live: List[data.Word], transcript: List[data.Word]) -> Tuple[Statistics, Statistics]:
     diff = compute_statistics(live, transcript)
 
     def to_lower_no_symbols(word: str) -> str:
@@ -170,25 +189,24 @@ def stats(live: List[data.Word], transcript: List[data.Word]) -> Tuple[Dict[str,
         return word_clean
     
     live_clean = [
-            data.Word(
-                to_lower_no_symbols(word.word),
-                word.start,
-                word.end,
-                word.probability
-            )
-          for word in live
-          ]
+        data.Word(
+            to_lower_no_symbols(word.word),
+            word.start,
+            word.end,
+            word.probability
+        )
+        for word in live
+    ]
     transcript_clean = [
-            data.Word(
-                to_lower_no_symbols(word.word),
-                word.start,
-                word.end,
-                word.probability
-            )
-          for word in transcript
-          ]
+        data.Word(
+            to_lower_no_symbols(word.word),
+            word.start,
+            word.end,
+            word.probability
+        )
+        for word in transcript
+    ]
 
     diff2 = compute_statistics(live_clean, transcript_clean)
 
     return diff, diff2
-    

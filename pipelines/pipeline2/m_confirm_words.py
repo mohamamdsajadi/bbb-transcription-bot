@@ -31,7 +31,7 @@ class Confirm_Words(Module):
     def init_module(self) -> None:
         pass
 
-    def similarity_difflib(self, wort1, wort2) -> float:
+    def similarity_difflib(self, wort1: str, wort2: str) -> float:
         matcher = difflib.SequenceMatcher(None, wort1, wort2)
         return matcher.ratio()
 
