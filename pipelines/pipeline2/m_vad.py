@@ -21,6 +21,49 @@ import logger
 
 log = logger.get_logger()
 
+# This part is copied from WhisperX's vad.py
+# https://github.com/m-bain/whisperX
+
+# Thanks to WhisperX for the amazing work on the VAD model
+# Also have a look at the paper:
+# @article{bain2022whisperx,
+#   title={WhisperX: Time-Accurate Speech Transcription of Long-Form Audio},
+#   author={Bain, Max and Huh, Jaesung and Han, Tengda and Zisserman, Andrew},
+#   journal={INTERSPEECH 2023},
+#   year={2023},
+#   comments={Accepted to INTERSPEECH 2023},
+#   subjects={Sound (cs.SD); Audio and Speech Processing (eess.AS)},
+#   url={https://doi.org/10.48550/arXiv.2303.00747},
+#   doi={10.48550/arXiv.2303.00747}
+# }
+
+# WhisperX License:
+# BSD 2-Clause License
+
+# Copyright (c) 2024, Max Bain
+
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+
+# 1. Redistributions of source code must retain the above copyright notice, this
+#    list of conditions and the following disclaimer.
+
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
 class VoiceActivitySegmentation(VoiceActivityDetection):
     def __init__(
         self,
