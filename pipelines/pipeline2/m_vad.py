@@ -21,7 +21,7 @@ import logger
 
 log = logger.get_logger()
 
-# This part is copied from WhisperX's vad.py
+# This part was copied and modified from WhisperX's vad.py
 # https://github.com/m-bain/whisperX
 
 # Thanks to WhisperX for the amazing work on the VAD model
