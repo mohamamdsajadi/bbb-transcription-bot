@@ -334,6 +334,7 @@ class VAD(Module):
         self.device: str = "cuda" if torch.cuda.is_available() else "cpu"
         self.model: Optional[VoiceActivitySegmentation] = None
         self.vad_segmentation_url = "https://whisperx.s3.eu-west-2.amazonaws.com/model_weights/segmentation/0b5b3216d60a2d32fc086b47ea8c67589aaeb26b7e07fcbe620d6d0b83e209ea/pytorch_model.bin"
+        self.model_path: Optional[str] = ".models/vad-whisperx"
 
         self.last_time_spoken_offset: float = 3 # It will stop processing if no one has spoken in the last 5 seconds
 
@@ -346,7 +347,7 @@ class VAD(Module):
     def init_module(self) -> None:
         log.info(f"Loading model vad...")
         self.model = self.load_vad_model(device=self.device, vad_onset=self.vad_onset, vad_offset=self.vad_offset, use_auth_token=self.use_auth_token, model_fp=self.model_fp)
-        log.info("Model loaded")
+        log.info("VAD model loaded")
 
     def execute(self, dp: DataPackage[data.AudioData], dpc: DataPackageController, dpp: DataPackagePhase, dpm: DataPackageModule) -> None:
         if not self.model:
@@ -384,24 +385,10 @@ class VAD(Module):
             dpm.status = Status.EXIT
             return
         
-        # # Build one audio with only the voice segments from the VAD
-        # audio_segments: List[np.ndarray] = []
-        # for i, segment in enumerate(merged_segments):
-        #     start_time: float = segment['start']
-        #     end_time: float = segment['end']
-
-        #     # Extract only the relevant segment based on start and end times
-        #     start_sample: int = int(start_time * sample_rate)
-        #     end_sample: int = int(end_time * sample_rate)
-        #     audio_segments.append(audio[start_sample:end_sample])
-            
-
-        # dp.data.vad_audio_result = np.concatenate(audio_segments)
-        
     
 
     def load_vad_model(self, device: str, vad_onset: float=0.500, vad_offset: float=0.363, use_auth_token: Union[Text, None]=None, model_fp: Union[Text, None]=None) -> VoiceActivitySegmentation:
-        model_dir = torch.hub._get_torch_home()
+        model_dir = self.model_path if self.model_path is not None else torch.hub._get_torch_home()
         os.makedirs(model_dir, exist_ok = True)
         if model_fp is None:
             model_fp = os.path.join(model_dir, "whisperx-vad-segmentation.bin")
