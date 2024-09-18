@@ -54,7 +54,7 @@ def transcribe_audio(audio_path: str) -> List[data.Word]:
     print(f"Loading Whisper model: '{model_size}' on {device}...")
     model = WhisperModel(model_size, device=device, compute_type=compute_type)
     batched_model = BatchedInferencePipeline(model=model)
-    print("Model loaded successfully!")
+    print("Whisper model loaded successfully!")
 
     # Transcribe the audio using the model
     segments, info = batched_model.transcribe(audio_path, batch_size=batch_size, word_timestamps=True)
@@ -152,14 +152,6 @@ def compute_statistics(
     # Compute average differences in start and end times (in seconds)
     avg_delta_start: float = sum(abs(ds) for ds in delta_starts) / len(delta_starts) if delta_starts else 0
     avg_delta_end: float = sum(abs(de) for de in delta_ends) / len(delta_ends) if delta_ends else 0
-
-    # Print out the results
-    print(f"Number of words missing in live (Deletions): {D}")
-    print(f"Number of wrong words in live (Substitutions): {S}")
-    print(f"Number of extra words in live (Insertions): {I}")
-    print(f"Average difference in start times: {avg_delta_start * 1000:.1f} milliseconds")
-    print(f"Average difference in end times: {avg_delta_end * 1000:.1f} milliseconds")
-    print(f"Word Error Rate (WER): {WER * 100:.1f}%")
 
     # Return the statistics as a dataclass instance
     return Statistics(

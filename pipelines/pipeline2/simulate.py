@@ -16,7 +16,7 @@ from m_rate_limiter import Rate_Limiter
 from m_vad import VAD
 import data
 import logger
-from simulate_live_audio_stream import simulate_live_audio_stream, stats, transcribe_audio
+from simulate_live_audio_stream import Statistics, simulate_live_audio_stream, stats, transcribe_audio
 
 log = logger.setup_logging()
 
@@ -135,8 +135,8 @@ def main() -> None:
             pickle.dump(data_list, file)
 
     # Load the JSON file
-    with open('text.pkl', 'rb') as file:
-        live_data: List[data.AudioData] = pickle.load(file) # type: ignore
+    with open('text.pkl', 'rb') as read_file:
+        live_data: List[data.AudioData] = pickle.load(read_file) # type: ignore
 
     live_dps: List[DataPackage[data.AudioData]] = [] # type: ignore
     for da in live_data:
@@ -159,7 +159,20 @@ def main() -> None:
     transcript_words = transcribe_audio(file_path)
     if live_words is None:
         raise ValueError("No data found")
-    stat = stats(live_words, transcript_words)
+    stats_sensetive, stats_insensetive = stats(live_words, transcript_words)
+    
+    def print_stats(stat: Statistics) -> None:
+        print(f"-------------------------------------------------------------------")
+        print(f"Number of words missing in live (Deletions): {len(stat.deletions)}")
+        print(f"Number of wrong words in live (Substitutions): {len(stat.substitutions)}")
+        print(f"Number of extra words in live (Insertions): {len(stat.insertions)}")
+        print(f"Average difference in start times: {stat.avg_delta_start * 1000:.1f} milliseconds")
+        print(f"Average difference in end times: {stat.avg_delta_start * 1000:.1f} milliseconds")
+        print(f"Word Error Rate (WER): {stat.wer * 100:.1f}%")
+        print(f"-------------------------------------------------------------------")
+        
+    print_stats(stats_sensetive)
+    print_stats(stats_insensetive)
     
 if __name__ == "__main__":
     main()
