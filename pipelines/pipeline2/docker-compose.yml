@@ -1,0 +1,19 @@
+services:
+  transcription-service:
+    container_name: transcription-service
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./.models:/app/.models
+      - ./audio:/app/audio
+    command: ["python", "simulate.py"]
+    ipc: host
+    tty: true
+    stdin_open: true
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            capabilities: [gpu]
