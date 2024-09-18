@@ -43,7 +43,7 @@ def simulate_live_audio_stream(file_path: str, callback: Callable[[bytes], None]
         
         
 
-def transcribe_audio(audio_path: str) -> List[data.Word]:
+def transcribe_audio(audio_path: str, model_path: Optional[str]) -> List[data.Word]:
     # Configuration for the Whisper model
     model_size = "large-v3"
     compute_type = "float16"  # Options: "float16" or "int8"
@@ -52,7 +52,7 @@ def transcribe_audio(audio_path: str) -> List[data.Word]:
 
     # Load the Whisper model
     print(f"Loading Whisper model: '{model_size}' on {device}...")
-    model = WhisperModel(model_size, device=device, compute_type=compute_type)
+    model = WhisperModel(model_size, device=device, compute_type=compute_type, download_root=model_path)
     batched_model = BatchedInferencePipeline(model=model)
     print("Whisper model loaded successfully!")
 
