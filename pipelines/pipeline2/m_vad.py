@@ -341,6 +341,7 @@ class VAD(Module):
         self.vad_offset = 0.363
         self.use_auth_token=None
         self.model_fp=None
+        self.max_chunk_size: float = 30.0
 
     def init_module(self) -> None:
         log.info(f"Loading model vad...")
@@ -360,7 +361,7 @@ class VAD(Module):
             raise Exception("No sample rate found")
         
         # sample_rate: int = dp.data.audio_data_sample_rate
-        audio_time: float = dp.data.audio_buffer_time
+        audio_time: float = dp.data.audio_buffer_time if dp.data.audio_buffer_time < self.max_chunk_size else self.max_chunk_size
         audio: np.ndarray = dp.data.audio_data
         
         # Perform voice activity detection
