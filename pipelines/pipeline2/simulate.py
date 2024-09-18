@@ -1,5 +1,9 @@
 # main.py
+import json
+import os
 import pickle
+import shutil
+import subprocess
 import threading
 import time
 from typing import List
@@ -119,60 +123,173 @@ def simulated_callback(raw_audio_data: bytes) -> None:
                     error_callback=error_callback
                     )
 
+audio_extensions = [
+    ".aac",    # Advanced Audio Codec
+    ".ac3",    # Audio Codec 3
+    ".aiff",   # Audio Interchange File Format
+    ".aif",    # Audio Interchange File Format
+    ".alac",   # Apple Lossless Audio Codec
+    ".amr",    # Adaptive Multi-Rate audio codec
+    ".ape",    # Monkey's Audio
+    ".au",     # Sun Microsystems Audio
+    ".dts",    # Digital Theater Systems audio
+    ".eac3",   # Enhanced AC-3
+    ".flac",   # Free Lossless Audio Codec
+    ".m4a",    # MPEG-4 Audio (usually AAC)
+    ".mka",    # Matroska Audio
+    ".mp3",    # MPEG Layer 3
+    ".ogg",    # Ogg Vorbis or Ogg Opus
+    ".opus",   # Opus audio codec
+    ".ra",     # RealAudio
+    ".rm",     # RealMedia
+    ".tta",    # True Audio codec
+    ".voc",    # Creative Voice File
+    ".wav",    # Waveform Audio File Format
+    ".wma",    # Windows Media Audio
+    ".wv",     # WavPack
+    ".caf",    # Core Audio Format
+    ".gsm",    # GSM 6.10 audio codec
+    ".mp2",    # MPEG Layer 2 audio
+    ".spx",    # Speex audio
+    ".aob"     # Audio Object (used in DVD-Audio)
+]
+
 def main() -> None:
-    # Path to the input audio file
-    file_path = 'audio/audio.ogg'  # Replace with your file path
+    input_folder  = './audio'
+    output_folder = './simulate_results'
     
-    # Simulate live audio stream (example usage)
-    simulate_live_audio_stream(file_path, simulated_callback)
-    
-    time.sleep(5)
+    # Create the output folder if it doesn't exist
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
 
-    # Save the live transcription as a JSON
-    with result_mutex:
-        data_list: List[data.AudioData] = [dat.data for dat in result if dat.data is not None]
-        with open('text.pkl', 'wb') as file:
-            pickle.dump(data_list, file)
-
-    # Load the JSON file
-    with open('text.pkl', 'rb') as read_file:
-        live_data: List[data.AudioData] = pickle.load(read_file) # type: ignore
-
-    live_dps: List[DataPackage[data.AudioData]] = [] # type: ignore
-    for da in live_data:
-        new_dp = DataPackage[data.AudioData]()
-        new_dp.data=da
-        live_dps.append(new_dp)
-
-    cw = Confirm_Words()
-    for live_dp in live_dps:
-        if live_dp.data is not None:
-            live_dp.data.confirmed_words = None
-            live_dp.data.unconfirmed_words = None
-        cw.execute(live_dp, DataPackageController(), DataPackagePhase(), DataPackageModule())
-
-    if live_dps[-1].data is None:
-        raise ValueError("No data found")
-    live_words = live_dps[-1].data.confirmed_words
-
-    # safe transcript and result_tuple as json in a file
-    transcript_words = transcribe_audio(file_path)
-    if live_words is None:
-        raise ValueError("No data found")
-    stats_sensetive, stats_insensetive = stats(live_words, transcript_words)
-    
-    def print_stats(stat: Statistics) -> None:
-        print(f"-------------------------------------------------------------------")
-        print(f"Number of words missing in live (Deletions): {len(stat.deletions)}")
-        print(f"Number of wrong words in live (Substitutions): {len(stat.substitutions)}")
-        print(f"Number of extra words in live (Insertions): {len(stat.insertions)}")
-        print(f"Average difference in start times: {stat.avg_delta_start * 1000:.1f} milliseconds")
-        print(f"Average difference in end times: {stat.avg_delta_start * 1000:.1f} milliseconds")
-        print(f"Word Error Rate (WER): {stat.wer * 100:.1f}%")
-        print(f"-------------------------------------------------------------------")
+    for folder_name in os.listdir(input_folder):
+        # Check if the file has a valid audio extension and skip non-audio files
+        if not any(folder_name.endswith(ext) for ext in audio_extensions):
+            print(f"Skipping non-audio file: {folder_name}")
+            continue
         
-    print_stats(stats_sensetive)
-    print_stats(stats_insensetive)
+        new_output_folder = os.path.join(output_folder, os.path.splitext(folder_name)[0])  # Create folder for each file
+        if not os.path.exists(new_output_folder):
+            os.makedirs(new_output_folder)
+
+        input_file = os.path.join(input_folder, folder_name)
+        output_file = os.path.join(new_output_folder, os.path.splitext(folder_name)[0] + '.ogg')
+        
+        # Skip if the output file already exists
+        if os.path.exists(output_file):
+            continue
+
+        # Construct and run the ffmpeg command as before
+        command = [
+            'ffmpeg', '-i', input_file, '-c:a', 'libopus',
+            '-frame_duration', '20', '-page_duration', '20000',
+            '-vn', output_file
+        ]
+
+        try:
+            subprocess.run(command, check=True)
+            print(f"Converted: {folder_name} -> {output_file}")
+        except Exception as e:
+            print(f"Error processing file {folder_name}: {e}")
+    
+    for folder_name in os.listdir(output_folder):
+        new_output_folder = os.path.join(output_folder, os.path.splitext(folder_name)[0])
+        file_path = os.path.join(new_output_folder, folder_name + ".ogg")
+        new_file_beginning = os.path.join(new_output_folder, folder_name)
+        
+        if not file_path.endswith(".ogg"):
+            print(f"Skipping non-audio file: {folder_name}")
+            continue
+        
+        if not os.path.exists(f"{new_file_beginning}_simulation.pkl"):
+            simulate_live_audio_stream(file_path, simulated_callback)
+            time.sleep(5)
+
+            with result_mutex:
+                data_list = [dat.data for dat in result if dat.data is not None]
+                with open(f"{new_file_beginning}_simulation.pkl", 'wb') as file:
+                    pickle.dump(data_list, file)
+
+        if not os.path.exists(f"{new_file_beginning}_transcript.pkl"):
+            transcript = transcribe_audio(file_path)
+            with open(f"{new_file_beginning}_transcript.pkl", 'wb') as file:
+                pickle.dump(transcript, file)
+
+
+
+        # Load the pkl file
+        with open(f"{new_file_beginning}_simulation.pkl", 'rb') as read_file:
+            live_data: List[data.AudioData] = pickle.load(read_file) # type: ignore
+            
+        with open(f"{new_file_beginning}_transcript.pkl", 'rb') as read_file:
+            transcript_words: List[data.Word] = pickle.load(read_file) # type: ignore
+
+        live_dps: List[DataPackage[data.AudioData]] = [] # type: ignore
+        for da in live_data:
+            new_dp = DataPackage[data.AudioData]()
+            new_dp.data=da
+            live_dps.append(new_dp)
+
+        # cw = Confirm_Words()
+        # for live_dp in live_dps:
+        #     if live_dp.data is not None:
+        #         live_dp.data.confirmed_words = None
+        #         live_dp.data.unconfirmed_words = None
+        #     cw.execute(live_dp, DataPackageController(), DataPackagePhase(), DataPackageModule())
+
+        if live_dps[-1].data is None:
+            raise ValueError("No data found")
+        live_words = live_dps[-1].data.confirmed_words
+        
+        if live_words is None:
+            raise ValueError("No data found")
+        stat_sensetive, stat_insensetive = stats(live_words, transcript_words)
+        
+        def save_stats(stats_sensetive, stats_insensetive) -> None:
+            # Function to format statistics as JSON
+            def stats_to_json(stat: Statistics) -> str:
+                return json.dumps({
+                    "deletions": [{"word": word.word, "start": word.start, "end": word.end, "probability": word.probability} for word in stat.deletions],
+                    "substitutions": [{"from": sub[0].word, "to": sub[1].word} for sub in stat.substitutions],
+                    "insertions": [{"word": word.word, "start": word.start, "end": word.end, "probability": word.probability} for word in stat.insertions],
+                    "wer": stat.wer,
+                    "avg_delta_start": stat.avg_delta_start,
+                    "avg_delta_end": stat.avg_delta_end
+                }, indent=4)
+
+            # if file f"{new_file_beginning}_stats.txt" exists, delete it
+            if os.path.exists(f"{new_file_beginning}_stats.txt"):
+                os.remove(f"{new_file_beginning}_stats.txt")
+
+            # Writing the output to a file
+            with open(f"{new_file_beginning}_stats.txt", "w") as file:
+                file.write(f"-------------------------------------------------------------------\n")
+                file.write(f"File: {file_path}\n")
+                file.write(f"-------------------------------------------------------------------\n")
+                file.write(f"Statistics for case sensitive:\n")
+                file.write(f"Number of words missing in live (Deletions): {len(stats_sensetive.deletions)}\n")
+                file.write(f"Number of wrong words in live (Substitutions): {len(stats_sensetive.substitutions)}\n")
+                file.write(f"Number of extra words in live (Insertions): {len(stats_sensetive.insertions)}\n")
+                file.write(f"Average difference in start times: {stats_sensetive.avg_delta_start * 1000:.1f} milliseconds\n")
+                file.write(f"Average difference in end times: {stats_sensetive.avg_delta_end * 1000:.1f} milliseconds\n")
+                file.write(f"Word Error Rate (WER): {stats_sensetive.wer * 100:.1f}%\n")
+                file.write(f"-------------------------------------------------------------------\n")
+                file.write(f"Statistics without case sensitivity and symbols:\n")
+                file.write(f"Number of words missing in live (Deletions): {len(stats_insensetive.deletions)}\n")
+                file.write(f"Number of wrong words in live (Substitutions): {len(stats_insensetive.substitutions)}\n")
+                file.write(f"Number of extra words in live (Insertions): {len(stats_insensetive.insertions)}\n")
+                file.write(f"Average difference in start times: {stats_insensetive.avg_delta_start * 1000:.1f} milliseconds\n")
+                file.write(f"Average difference in end times: {stats_insensetive.avg_delta_end * 1000:.1f} milliseconds\n")
+                file.write(f"Word Error Rate (WER): {stats_insensetive.wer * 100:.1f}%\n")
+                file.write(f"-------------------------------------------------------------------\n")
+                file.write(f"-------------------------------------------------------------------\n")
+                file.write(f"Statistics as formatted JSON for sensitive case:\n")
+                file.write(stats_to_json(stats_sensetive) + "\n")
+                file.write(f"Statistics as formatted JSON for insensitive case:\n")
+                file.write(stats_to_json(stats_insensetive) + "\n")
+            
+        print(f"File: {folder_name}")
+        save_stats(stat_sensetive, stat_insensetive)
     
 if __name__ == "__main__":
     main()
