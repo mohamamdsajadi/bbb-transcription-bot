@@ -1,3 +1,5 @@
+simulate_results/
+simulate_results/*
 .models/
 .models/*
 *.pkl
