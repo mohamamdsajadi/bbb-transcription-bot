@@ -23,6 +23,7 @@ class Faster_Whisper_transcribe(Module):
             ),
             name="Faster_Whisper_transcribe"
         )
+        self.model_path: str = ".models"
         self.model_size: str = "large-v3"
         self.compute_type: str = "float16" # "float16" or "int8"
         self.device: str = "cuda" if torch.cuda.is_available() else "cpu"
@@ -37,7 +38,7 @@ class Faster_Whisper_transcribe(Module):
 
     def init_module(self) -> None:
         log.info(f"Loading model whisper:'{self.model_size}'...")
-        self.model = WhisperModel(self.model_size, device=self.device, compute_type=self.compute_type)
+        self.model = WhisperModel(self.model_size, device=self.device, compute_type=self.compute_type, download_root=self.model_path)
         if self.batching:
             self.batched_model = BatchedInferencePipeline(model=self.model)
         log.info("Model loaded")
