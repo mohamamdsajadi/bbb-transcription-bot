@@ -1,3 +1,5 @@
+.models/
+.models/*
 *.pkl
 *.json
 # Byte-compiled / optimized / DLL files
