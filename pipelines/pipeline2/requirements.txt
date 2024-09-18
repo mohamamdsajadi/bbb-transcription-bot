@@ -7,3 +7,5 @@ python-dotenv
 cryptography
 flask
 prometheus_client
+numpy
+faster-whisper @ https://github.com/SYSTRAN/faster-whisper/archive/refs/heads/master.tar.gz
