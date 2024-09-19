@@ -323,34 +323,43 @@ def merge_chunks(
 
 
 class VAD(Module):
-    def __init__(self) -> None:
+    def __init__(self,
+                    device: str = "cuda",
+                    model_path: Optional[str] = ".models/vad-whisperx",
+                    max_chunk_size: float = 30.0,
+                    last_time_spoken_offset: float = 3,
+                    vad_onset: float = 0.500,
+                    vad_offset: float = 0.363,
+                    use_auth_token: Union[Text, None] = None,
+                    model_fp: Union[Text, None] = None,
+                    vad_segmentation_url: str = "https://whisperx.s3.eu-west-2.amazonaws.com/model_weights/segmentation/0b5b3216d60a2d32fc086b47ea8c67589aaeb26b7e07fcbe620d6d0b83e209ea/pytorch_model.bin"
+                ) -> None:
         super().__init__(
             ModuleOptions(
                 use_mutex=True,
                 timeout=5,
             ),
-            name="VAD"
+            name="VAD-Module"
         )
-        self.device: str = "cuda" if torch.cuda.is_available() else "cpu"
-        self.model: Optional[VoiceActivitySegmentation] = None
-        self.vad_segmentation_url = "https://whisperx.s3.eu-west-2.amazonaws.com/model_weights/segmentation/0b5b3216d60a2d32fc086b47ea8c67589aaeb26b7e07fcbe620d6d0b83e209ea/pytorch_model.bin"
-        self.model_path: Optional[str] = ".models/vad-whisperx"
-
-        self.last_time_spoken_offset: float = 3 # It will stop processing if no one has spoken in the last 5 seconds
-
-        self.vad_onset = 0.500
-        self.vad_offset = 0.363
-        self.use_auth_token=None
-        self.model_fp=None
-        self.max_chunk_size: float = 30.0
+        self.device: str = device if torch.cuda.is_available() else "cpu"
+        self.model_path: Optional[str] = model_path
+        self.max_chunk_size: float = max_chunk_size
+        self.last_time_spoken_offset: float = last_time_spoken_offset # It will stop processing if no one has spoken in the last 5 seconds
+        self.vad_onset = vad_onset
+        self.vad_offset = vad_offset
+        self.use_auth_token=use_auth_token
+        self.model_fp=model_fp
+        self.vad_segmentation_url = vad_segmentation_url
+        
+        self._model: Optional[VoiceActivitySegmentation] = None
 
     def init_module(self) -> None:
         log.info(f"Loading model vad...")
-        self.model = self.load_vad_model(device=self.device, vad_onset=self.vad_onset, vad_offset=self.vad_offset, use_auth_token=self.use_auth_token, model_fp=self.model_fp)
+        self._model = self.load_vad_model(device=self.device, vad_onset=self.vad_onset, vad_offset=self.vad_offset, use_auth_token=self.use_auth_token, model_fp=self.model_fp)
         log.info("VAD model loaded")
 
     def execute(self, dp: DataPackage[data.AudioData], dpc: DataPackageController, dpp: DataPackagePhase, dpm: DataPackageModule) -> None:
-        if not self.model:
+        if not self._model:
             raise Exception("Whisper model not loaded")
         if not dp.data:
             raise Exception("No data found")
@@ -366,7 +375,7 @@ class VAD(Module):
         audio: np.ndarray = dp.data.audio_data
         
         # Perform voice activity detection
-        vad_result: SlidingWindowFeature = self.model.apply(audio, sr=dp.data.audio_data_sample_rate)
+        vad_result: SlidingWindowFeature = self._model.apply(audio, sr=dp.data.audio_data_sample_rate)
         
         # Merge VAD segments if necessary
         merged_segments: List[Dict[str, float | List[Tuple[float, float]]]] = merge_chunks(vad_result, chunk_size=audio_time)

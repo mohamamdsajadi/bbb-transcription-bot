@@ -64,25 +64,84 @@ class Simulation_Pipeline:
     pipeline: Pipeline
 
 # CreateNsAudioPackage, Load_audio, VAD, Faster_Whisper_transcribe, Local_Agreement
-# 'http://prometheus-to-graph:5000/graph?server=http://prometheus:9090&query=rate(module_success_time_sum%7Bpipeline_id=%22PIPELINEID%22%7D[2s])%20/%20rate(module_success_time_count%7Bpipeline_id=%22PIPELINEID%22%7D[2s])%7Crate(pipeline_success_time_sum%7Bpipeline_id=%22PIPELINEID%22%7D[2s])%20/%20rate(pipeline_success_time_count%7Bpipeline_id=%22PIPELINEID%22%7D[2s])&start=STARTTIME&end=ENDTIME&title=Module%20Success%20Time&xlabel=Time&ylabel=Time&legend=true&label=module_name%7Cpipeline_name'
+scheme = "http"
+netloc = "prometheus-to-graph:5000"
+graph_server = "http://prometheus:9090"
+
 simulation_pipeline_list = [
     Simulation_Pipeline(
         name = "p1",
         prometheus_url = [
+            
+                # Processing Time
                 Prometheus_URL(
-                    scheme="http",
-                    netloc="prometheus-to-graph:5000",
+                    scheme=scheme,
+                    netloc=netloc,
                     path="/graph",
                     query={
-                        "server": "http://prometheus:9090",
+                        "server": graph_server,
                         "query": "rate(module_success_time_sum{pipeline_id=\"PIPELINEID\"}[2s]) / rate(module_success_time_count{pipeline_id=\"PIPELINEID\"}[2s])|rate(pipeline_success_time_sum{pipeline_id=\"PIPELINEID\"}[2s]) / rate(pipeline_success_time_count{pipeline_id=\"PIPELINEID\"}[2s])",
                         "start": "STARTTIME",
                         "end": "ENDTIME",
-                        "title": "Module Success Time",
+                        "title": "Processing Time",
                         "xlabel": "Time",
-                        "ylabel": "Time",
+                        "ylabel": "Processing Time",
                         "legend": "true",
                         "label": "module_name|pipeline_name",
+                    }
+                ),
+
+                # Flowrate input + each model success output
+                Prometheus_URL(
+                    scheme=scheme,
+                    netloc=netloc,
+                    path="/graph",
+                    query={
+                        "server": graph_server,
+                        "query": "rate(pipeline_input_flowrate_total{pipeline_id=\"PIPELINEID\"}[2s])|rate(module_output_flowrate_total{pipeline_id=\"PIPELINEID\"}[2s])",
+                        "start": "STARTTIME",
+                        "end": "ENDTIME",
+                        "title": "Processing Time",
+                        "xlabel": "Time",
+                        "ylabel": "Processing Time",
+                        "legend": "true",
+                        "label": "pipeline_name|module_name",
+                    }
+                ),
+                
+                # Exit flowrate of each model
+                Prometheus_URL(
+                    scheme=scheme,
+                    netloc=netloc,
+                    path="/graph",
+                    query={
+                        "server": graph_server,
+                        "query": "rate(module_exit_flowrate_total{pipeline_id=\"PIPELINEID\"}[2s])",
+                        "start": "STARTTIME",
+                        "end": "ENDTIME",
+                        "title": "Processing Time",
+                        "xlabel": "Time",
+                        "ylabel": "Processing Time",
+                        "legend": "true",
+                        "label": "module_name",
+                    }
+                ),
+
+                # Flowrate output + VAD exit
+                Prometheus_URL(
+                    scheme=scheme,
+                    netloc=netloc,
+                    path="/graph",
+                    query={
+                        "server": graph_server,
+                        "query": "rate(pipeline_output_flowrate_total{pipeline_id=\"PIPELINEID\"}[2s])|rate(module_exit_flowrate_total{pipeline_id=\"PIPELINEID\", module_name=\"VAD\"}[2s])",
+                        "start": "STARTTIME",
+                        "end": "ENDTIME",
+                        "title": "Processing Time",
+                        "xlabel": "Time",
+                        "ylabel": "Processing Time",
+                        "legend": "true",
+                        "label": "pipeline_name|module_name",
                     }
                 ),
             ],
@@ -96,8 +155,12 @@ simulation_pipeline_list = [
                         PipelinePhase(
                             name="Create_Audio_Buffer",
                             modules=[
-                                Create_Audio_Buffer(),
-                                Rate_Limiter(),
+                                Create_Audio_Buffer(
+                                        last_n_seconds=10,
+                                    ),
+                                Rate_Limiter(
+                                        flowrate_per_second=2,
+                                    ),
                             ]
                         )
                     ]
@@ -112,7 +175,10 @@ simulation_pipeline_list = [
                             name="VADPhase",
                             modules=[
                                 Convert_Audio(),
-                                VAD(),
+                                VAD(
+                                        max_chunk_size=10,
+                                        last_time_spoken_offset=3.0,
+                                    ),
                             ]
                         )
                     ]
@@ -125,7 +191,13 @@ simulation_pipeline_list = [
                         PipelinePhase(
                             name="WhisperPhase",
                             modules=[
-                                Faster_Whisper_transcribe(),
+                                Faster_Whisper_transcribe(
+                                        model_size="large-v3",
+                                        task="transcribe",
+                                        compute_type="float16",
+                                        batching=True,
+                                        batch_size=32,
+                                    ),
                             ]
                         )
                     ]
@@ -138,7 +210,10 @@ simulation_pipeline_list = [
                         PipelinePhase(
                             name="OutputPhase",
                             modules=[
-                                Confirm_Words(),
+                                Confirm_Words(
+                                        max_confirmed_words=0,
+                                        confirm_if_older_then=2.0,
+                                    ),
                             ]
                         )
                     ]
@@ -280,13 +355,40 @@ def main() -> None:
                 
                 start_time = time.time()
                 simulate_live_audio_stream(file_path, simulated_callback)
-                time.sleep(5)
                 end_time = time.time()
+                time.sleep(5)
 
                 with result_mutex:
                     data_list = [dat.data for dat in result if dat.data is not None]
                     with open(f"{new_file_beginning_sumulation}_simulation.pkl", 'wb') as file:
                         pickle.dump(data_list, file)
+                        
+                        
+                # Save graphes from url
+                start = datetime.fromtimestamp(start_time).strftime('%Y-%m-%d %H:%M:%S')
+                end = datetime.fromtimestamp(end_time).strftime('%Y-%m-%d %H:%M:%S')
+                urls = simulation_pipeline.prometheus_url
+                for i, url in enumerate(urls):
+                    if os.path.exists(f"{new_file_beginning_sumulation}_{i}_graph.png"):
+                        continue
+                    
+                    url_copy = url.copy()
+                    
+                    url_copy.query["query"] = url_copy.query["query"].replace("PIPELINEID", pipeline_id)
+                    url_copy.query["start"] = start
+                    url_copy.query["end"] = end
+                    print(url_copy)
+                
+                    response = requests.get(url_copy)
+
+                    # Check if the request was successful
+                    if response.status_code == 200:
+                        # Save the content as an image file
+                        with open(f"{new_file_beginning_sumulation}_{i}_graph.png", 'wb') as file:
+                            file.write(response.content)
+                    else:
+                        print(f"Failed to download image. Status code: {response.status_code}")
+                        
 
             if not os.path.exists(f"{new_file_beginning}_transcript.pkl"):
                 transcript = transcribe_audio(file_path, faster_whisper_model_path)
@@ -368,32 +470,6 @@ def main() -> None:
                 
             print(f"File: {folder_name}")
             save_stats(stat_sensetive, stat_insensetive)
-            
-            
-            
-            # Save graphes from url
-            start = datetime.fromtimestamp(start_time).strftime('%Y-%m-%d %H:%M:%S')
-            end = datetime.fromtimestamp(end_time).strftime('%Y-%m-%d %H:%M:%S')
-            urls = simulation_pipeline.prometheus_url
-            for i, url in enumerate(urls):
-                url_copy = url.copy()
-                if os.path.exists(f"{new_file_beginning_sumulation}_{i}_graph.png"):
-                    continue
-                
-                url.query["query"] = url.query["query"].replace("PIPELINEID", pipeline_id)
-                url.query["start"] = start
-                url.query["end"] = end
-                print(url)
-            
-                response = requests.get(url)
-
-                # Check if the request was successful
-                if response.status_code == 200:
-                    # Save the content as an image file
-                    with open(f"{new_file_beginning_sumulation}_{i}_graph.png", 'wb') as file:
-                        file.write(response.content)
-                else:
-                    print(f"Failed to download image. Status code: {response.status_code}")
             
             try:
                 subprocess.run(['chmod', '777', output_folder, '-R'])

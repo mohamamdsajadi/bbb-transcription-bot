@@ -12,21 +12,25 @@ import data
 log = logger.get_logger()
 
 class Confirm_Words(Module):
-    def __init__(self) -> None:
+    def __init__(self,
+                    offset: float = 0.3,
+                    max_confirmed_words: int = 0,
+                    confirm_if_older_then: float = 2.0
+                ) -> None:
         super().__init__(
             ModuleOptions(
                 use_mutex=False,
                 timeout=5,
             ),
-            name="Confirm_Words"
+            name="Confirm-Words-Module"
         )
-        self.offset = 0.3
-        self.max_confirmed_words = 0
-        self.confirmed: List[data.Word] = []  # Buffer to store committed words
-
-        self.confirmed_end_time: float = 0.0
+        self.offset = offset
+        self.max_confirmed_words = max_confirmed_words
+        self.confirm_if_older_then: float = confirm_if_older_then # Confirm words if they are older than this value in seconds
         
-        self.confirm_if_older_then: float = 2.0 # Confirm words if they are older than this value in seconds
+        self._confirmed: List[data.Word] = []  # Buffer to store committed words
+        self._confirmed_end_time: float = 0.0
+        
 
     def init_module(self) -> None:
         pass
@@ -92,7 +96,7 @@ class Confirm_Words(Module):
         # print(only_words)
             
         if len(new_words) == 0:
-            dp.data.confirmed_words = self.confirmed.copy()
+            dp.data.confirmed_words = self._confirmed.copy()
             dp.data.unconfirmed_words = []
             return
 
@@ -100,7 +104,7 @@ class Confirm_Words(Module):
         new_confirmed: List[data.Word] = []
         new_unconfirmed: List[data.Word] = []
         for new_word in new_words:
-            if new_word.start < self.confirmed_end_time - self.offset:
+            if new_word.start < self._confirmed_end_time - self.offset:
                 new_confirmed.append(new_word)
             else:
                 new_unconfirmed.append(new_word)
@@ -109,7 +113,7 @@ class Confirm_Words(Module):
         words_to_confirm = []
         for new_word in new_unconfirmed:
             if audio_buffer_start_after + audio_buffer_time - new_word.end >= self.confirm_if_older_then:
-                self.confirmed.append(new_word)
+                self._confirmed.append(new_word)
                 words_to_confirm.append(new_word)
 
         # Remove confirmed words from unconfirmed list
@@ -139,37 +143,37 @@ class Confirm_Words(Module):
         #     #         self.confirmed.append(new_word)
 
         # Remove words from confirmed which are not confidant enough < 0.2
-        self.confirmed = [word for word in self.confirmed if word.probability >= 0.2]
+        self._confirmed = [word for word in self._confirmed if word.probability >= 0.2]
 
         # sort confirmed words by start time
-        self.confirmed = sorted(self.confirmed, key=lambda x: x.start)
+        self._confirmed = sorted(self._confirmed, key=lambda x: x.start)
 
         # remove words which times are overlapping.
         to_remove_list = []
-        for i in range(len(self.confirmed) - 1):
-            if self.confirmed[i].end > self.confirmed[i + 1].start:
-                if self.is_similar(self.confirmed[i].word, self.confirmed[i + 1].word, 0.7):
+        for i in range(len(self._confirmed) - 1):
+            if self._confirmed[i].end > self._confirmed[i + 1].start:
+                if self.is_similar(self._confirmed[i].word, self._confirmed[i + 1].word, 0.7):
                     to_remove_list.append(i)
                     i = i + 1
 
         while len(to_remove_list) > 0:
             i = to_remove_list.pop(0)
-            self.confirmed.pop(i)
+            self._confirmed.pop(i)
             to_remove_list = [x-1 for x in to_remove_list]
 
 
         # Ensure that the number of confirmed words does not exceed the max_confirmed_words limit
-        if len(self.confirmed) > self.max_confirmed_words:
-            self.confirmed = self.confirmed[-self.max_confirmed_words:]
+        if len(self._confirmed) > self.max_confirmed_words:
+            self._confirmed = self._confirmed[-self.max_confirmed_words:]
 
-        if len(self.confirmed) > 0:
-            self.confirmed_end_time = self.confirmed[-1].end
+        if len(self._confirmed) > 0:
+            self._confirmed_end_time = self._confirmed[-1].end
             
-        if len(self.confirmed) > self.max_confirmed_words:
-            self.confirmed = self.confirmed[-self.max_confirmed_words:]
+        if len(self._confirmed) > self.max_confirmed_words:
+            self._confirmed = self._confirmed[-self.max_confirmed_words:]
         
         # Update data package confirmed and unconfirmed words
         # only_words = [word.word for word in self.confirmed]
         # print(only_words)
-        dp.data.confirmed_words = self.confirmed.copy()
+        dp.data.confirmed_words = self._confirmed.copy()
         dp.data.unconfirmed_words = new_unconfirmed

@@ -11,15 +11,17 @@ import logger
 log = logger.get_logger()
 
 class Convert_Audio(Module):
-    def __init__(self) -> None:
+    def __init__(self,
+                    convert_sample_rate: int = 16000
+                ) -> None:
         super().__init__(
             ModuleOptions(
                 use_mutex=False,
                 timeout=5,
             ),
-            name="Convert_Audio"
+            name="Convert-Audio-Module"
         )
-        self.convert_sample_rate: int = 16000
+        self.convert_sample_rate: int = convert_sample_rate
 
     def init_module(self) -> None:
         pass
