@@ -1,5 +1,6 @@
 # main.py
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime
 import json
 import os
 import pickle
@@ -7,9 +8,12 @@ import shutil
 import subprocess
 import threading
 import time
-from typing import List
+from typing import Dict, List, Tuple
+from urllib.parse import quote, urlencode, urlunparse
 from prometheus_client import start_http_server
+import copy
 
+import requests # type: ignore
 from stream_pipeline.data_package import DataPackage, DataPackageController, DataPackagePhase, DataPackageModule
 from stream_pipeline.pipeline import Pipeline, ControllerMode, PipelinePhase, PipelineController
 
@@ -27,76 +31,120 @@ log = logger.setup_logging()
 
 start_http_server(8042)
 
+faster_whisper_model_path: str = ".models/faster-whisper"
+
+
+
+
+
+@dataclass
+class Prometheus_URL:
+    scheme: str
+    netloc: str
+    path: str
+    query: Dict[str, str] = field(default_factory=dict)
+    params: str = ''
+    fragment: str = ''
+
+    def __str__(self):
+        # Properly encode the query parameters without iterating over characters
+        encoded_query = urlencode(self.query)
+        # Construct the URL using urlunparse
+        return urlunparse((self.scheme, self.netloc, self.path, self.params, encoded_query, self.fragment))
+
+    def copy(self):
+        # Return a shallow copy of the instance
+        return copy.copy(self)
+
+
 @dataclass
 class Simulation_Pipeline:
     name: str
-    prometheus_url: List[str]
-    pipeline: List[PipelineController]
+    prometheus_url: List[Prometheus_URL]
+    pipeline: Pipeline
 
 # CreateNsAudioPackage, Load_audio, VAD, Faster_Whisper_transcribe, Local_Agreement
-
+# 'http://prometheus-to-graph:5000/graph?server=http://prometheus:9090&query=rate(module_success_time_sum%7Bpipeline_id=%22PIPELINEID%22%7D[2s])%20/%20rate(module_success_time_count%7Bpipeline_id=%22PIPELINEID%22%7D[2s])%7Crate(pipeline_success_time_sum%7Bpipeline_id=%22PIPELINEID%22%7D[2s])%20/%20rate(pipeline_success_time_count%7Bpipeline_id=%22PIPELINEID%22%7D[2s])&start=STARTTIME&end=ENDTIME&title=Module%20Success%20Time&xlabel=Time&ylabel=Time&legend=true&label=module_name%7Cpipeline_name'
 simulation_pipeline_list = [
     Simulation_Pipeline(
         name = "p1",
-        prometheus_url = [],
-        pipeline = [
-            PipelineController(
-                mode=ControllerMode.NOT_PARALLEL,
-                max_workers=1,
-                queue_size=10,
-                name="Create_Audio_Buffer",
-                phases=[
-                    PipelinePhase(
-                        name="Create_Audio_Buffer",
-                        modules=[
-                            Create_Audio_Buffer(),
-                            Rate_Limiter(),
-                        ]
-                    )
-                ]
-            ),
-            PipelineController(
-                mode=ControllerMode.FIRST_WINS,
-                max_workers=3,
-                queue_size=2,
-                name="AudioPreprocessingController",
-                phases=[
-                    PipelinePhase(
-                        name="VADPhase",
-                        modules=[
-                            Convert_Audio(),
-                            VAD(),
-                        ]
-                    )
-                ]
-            ),
-            PipelineController(
-                mode=ControllerMode.FIRST_WINS,
-                max_workers=1,
-                name="MainProcessingController",
-                phases=[
-                    PipelinePhase(
-                        name="WhisperPhase",
-                        modules=[
-                            Faster_Whisper_transcribe(),
-                        ]
-                    )
-                ]
-            ),
-            PipelineController(
-                mode=ControllerMode.NOT_PARALLEL,
-                max_workers=1,
-                name="OutputController",
-                phases=[
-                    PipelinePhase(
-                        name="OutputPhase",
-                        modules=[
-                            Confirm_Words(),
-                        ]
-                    )
-                ]
-            )
-        ]
+        prometheus_url = [
+                Prometheus_URL(
+                    scheme="http",
+                    netloc="prometheus-to-graph:5000",
+                    path="/graph",
+                    query={
+                        "server": "http://prometheus:9090",
+                        "query": "rate(module_success_time_sum{pipeline_id=\"PIPELINEID\"}[2s]) / rate(module_success_time_count{pipeline_id=\"PIPELINEID\"}[2s])|rate(pipeline_success_time_sum{pipeline_id=\"PIPELINEID\"}[2s]) / rate(pipeline_success_time_count{pipeline_id=\"PIPELINEID\"}[2s])",
+                        "start": "STARTTIME",
+                        "end": "ENDTIME",
+                        "title": "Module Success Time",
+                        "xlabel": "Time",
+                        "ylabel": "Time",
+                        "legend": "true",
+                        "label": "module_name|pipeline_name",
+                    }
+                ),
+            ],
+        pipeline = Pipeline[data.AudioData](name="Pipeline", controllers_or_phases=[
+                PipelineController(
+                    mode=ControllerMode.NOT_PARALLEL,
+                    max_workers=1,
+                    queue_size=10,
+                    name="Create_Audio_Buffer",
+                    phases=[
+                        PipelinePhase(
+                            name="Create_Audio_Buffer",
+                            modules=[
+                                Create_Audio_Buffer(),
+                                Rate_Limiter(),
+                            ]
+                        )
+                    ]
+                ),
+                PipelineController(
+                    mode=ControllerMode.FIRST_WINS,
+                    max_workers=3,
+                    queue_size=2,
+                    name="AudioPreprocessingController",
+                    phases=[
+                        PipelinePhase(
+                            name="VADPhase",
+                            modules=[
+                                Convert_Audio(),
+                                VAD(),
+                            ]
+                        )
+                    ]
+                ),
+                PipelineController(
+                    mode=ControllerMode.FIRST_WINS,
+                    max_workers=1,
+                    name="MainProcessingController",
+                    phases=[
+                        PipelinePhase(
+                            name="WhisperPhase",
+                            modules=[
+                                Faster_Whisper_transcribe(),
+                            ]
+                        )
+                    ]
+                ),
+                PipelineController(
+                    mode=ControllerMode.NOT_PARALLEL,
+                    max_workers=1,
+                    name="OutputController",
+                    phases=[
+                        PipelinePhase(
+                            name="OutputPhase",
+                            modules=[
+                                Confirm_Words(),
+                            ]
+                        )
+                    ]
+                )
+            ]
+        ),
     ),
 ]
 
@@ -208,13 +256,18 @@ def main() -> None:
         
 
         for simulation_pipeline in simulation_pipeline_list:
+            # clear data
+            with result_mutex:
+                result.clear()
+            
             new_file_beginning_sumulation = new_file_beginning + f"_{simulation_pipeline.name}"
             
+            start_time = end_time = time.time()
             if not os.path.exists(f"{new_file_beginning_sumulation}_simulation.pkl"):
                 # create pipeline
-                controllers = simulation_pipeline.pipeline
-                pipeline = Pipeline[data.AudioData](controllers, name="WhisperPipeline")
+                pipeline = simulation_pipeline.pipeline
                 pipeline_id = pipeline.get_id()
+                print(f"Pipeline ID: {pipeline_id}")
                 instance = pipeline.register_instance()
 
                 def simulated_callback(raw_audio_data: bytes) -> None:
@@ -225,8 +278,10 @@ def main() -> None:
                                     error_callback=error_callback
                                     )
                 
+                start_time = time.time()
                 simulate_live_audio_stream(file_path, simulated_callback)
                 time.sleep(5)
+                end_time = time.time()
 
                 with result_mutex:
                     data_list = [dat.data for dat in result if dat.data is not None]
@@ -234,7 +289,7 @@ def main() -> None:
                         pickle.dump(data_list, file)
 
             if not os.path.exists(f"{new_file_beginning}_transcript.pkl"):
-                transcript = transcribe_audio(file_path)
+                transcript = transcribe_audio(file_path, faster_whisper_model_path)
                 with open(f"{new_file_beginning}_transcript.pkl", 'wb') as file:
                     pickle.dump(transcript, file)
 
@@ -313,6 +368,37 @@ def main() -> None:
                 
             print(f"File: {folder_name}")
             save_stats(stat_sensetive, stat_insensetive)
+            
+            
+            
+            # Save graphes from url
+            start = datetime.fromtimestamp(start_time).strftime('%Y-%m-%d %H:%M:%S')
+            end = datetime.fromtimestamp(end_time).strftime('%Y-%m-%d %H:%M:%S')
+            urls = simulation_pipeline.prometheus_url
+            for i, url in enumerate(urls):
+                url_copy = url.copy()
+                if os.path.exists(f"{new_file_beginning_sumulation}_{i}_graph.png"):
+                    continue
+                
+                url.query["query"] = url.query["query"].replace("PIPELINEID", pipeline_id)
+                url.query["start"] = start
+                url.query["end"] = end
+                print(url)
+            
+                response = requests.get(url)
+
+                # Check if the request was successful
+                if response.status_code == 200:
+                    # Save the content as an image file
+                    with open(f"{new_file_beginning_sumulation}_{i}_graph.png", 'wb') as file:
+                        file.write(response.content)
+                else:
+                    print(f"Failed to download image. Status code: {response.status_code}")
+            
+            try:
+                subprocess.run(['chmod', '777', output_folder, '-R'])
+            except Exception as e:
+                pass
     
 if __name__ == "__main__":
     main()
