@@ -143,10 +143,10 @@ def compute_statistics(
             insertion_list.extend(insertions)
 
     # Compute Word Error Rate (WER)
-    N: int = len(transcript_words)  # Total words in transcript (reference)
     S: int = len(substitution_list)  # Number of substitutions
     D: int = len(deletion_list)  # Number of deletions
     I: int = len(insertion_list)  # Number of insertions
+    N: int = len(transcript_words) + S + D # Correct words + substitutions + deletions
     WER: float = (S + D + I) / N if N > 0 else 0
 
     # Compute average differences in start and end times (in seconds)
