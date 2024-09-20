@@ -1,7 +1,7 @@
 # main.py
 import threading
 import time
-from typing import Dict, Tuple
+from typing import Dict, List, Tuple
 
 from prometheus_client import start_http_server
 from flask import Flask
@@ -60,6 +60,7 @@ controllers = [
     PipelineController(
         mode=ControllerMode.FIRST_WINS,
         max_workers=1,
+        queue_size=0,
         name="MainProcessingController",
         phases=[
             PipelinePhase(
@@ -120,13 +121,20 @@ def main() -> None:
         if dp.data and dp.data.confirmed_words is not None and dp.data.unconfirmed_words is not None:
             # log.info(f"Text: {dp.data.transcribed_text['words']}")
             processing_time = dp.total_time
-            log.info(f"{processing_time:2f}:  {dp.data.confirmed_words} +++ {dp.data.unconfirmed_words}")
+            # log.info(f"{processing_time:2f}:  {dp.data.confirmed_words} +++ {dp.data.unconfirmed_words}")
             # log.info(f"{processing_time:2f}: cleaned_words:  {dp.data.transcribed_segments}")
             
             
             # put dp.data.confirmed_words together with space
-            text = ""
+            only_words: List[data.Word] = []
             for word in dp.data.confirmed_words:
+                only_words.append(word)
+                
+            if len(only_words) > 50:
+                only_words = only_words[-50:]
+            
+            text = ""
+            for word in only_words:
                 # if there is a . in this word add \n behind it
                 # if "." in word.word:
                 #     text += word.word + "\n"
