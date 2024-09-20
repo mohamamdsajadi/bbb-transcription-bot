@@ -293,7 +293,6 @@ def merge_chunks(
         segments_list.append(SegmentX(speech_turn.start, speech_turn.end, "UNKNOWN"))
 
     if len(segments_list) == 0:
-        print("No active speech found in audio")
         return []
     
     curr_start = segments_list[0].start
@@ -336,7 +335,7 @@ class VAD(Module):
                 ) -> None:
         super().__init__(
             ModuleOptions(
-                use_mutex=True,
+                use_mutex=False,
                 timeout=5,
             ),
             name="VAD-Module"
@@ -371,14 +370,15 @@ class VAD(Module):
             raise Exception("No sample rate found")
         
         # sample_rate: int = dp.data.audio_data_sample_rate
-        audio_time: float = dp.data.audio_buffer_time if dp.data.audio_buffer_time < self.max_chunk_size else self.max_chunk_size
+        audio_time: float = dp.data.audio_buffer_time
+        audio_chunk: float = dp.data.audio_buffer_time if dp.data.audio_buffer_time < self.max_chunk_size else self.max_chunk_size
         audio: np.ndarray = dp.data.audio_data
         
         # Perform voice activity detection
         vad_result: SlidingWindowFeature = self._model.apply(audio, sr=dp.data.audio_data_sample_rate)
         
         # Merge VAD segments if necessary
-        merged_segments: List[Dict[str, float | List[Tuple[float, float]]]] = merge_chunks(vad_result, chunk_size=audio_time)
+        merged_segments: List[Dict[str, float | List[Tuple[float, float]]]] = merge_chunks(vad_result, chunk_size=audio_chunk)
         
         dp.data.vad_result = merged_segments
         
@@ -392,6 +392,7 @@ class VAD(Module):
         if len(merged_segments) == 0 or last_time_spoken < (audio_time - self.last_time_spoken_offset):
             dpm.message = "No voice detected"
             dpm.status = Status.EXIT
+            print("No active speech found in audio")
             return
         
     
