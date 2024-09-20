@@ -163,8 +163,55 @@ def compute_statistics(
         avg_delta_end=avg_delta_end,
     )
 
-def stats(live: List[data.Word], transcript: List[data.Word]) -> Tuple[Statistics, Statistics]:
-    diff = compute_statistics(live, transcript)
+
+def time_difference(live_dps: List[DataPackage[data.AudioData]]) -> float:
+    # get the difference between live_dps[n].data.confirmed_words and live_dps[n+1].data.confirmed_words
+    def get_diff(cw1: Optional[List[data.Word]], cw2: Optional[List[data.Word]]) -> List[data.Word]:
+        if cw1 is None or cw2 is None or len(cw1) == 0 or len(cw2) == 0:
+            return []
+        last_word_time = cw1[-1].end
+        diff_words = [word for word in cw2 if word.start >= last_word_time]
+        return diff_words
+    
+    diff: List[float] = []
+    last_live_dp: Optional[DataPackage[data.AudioData]] = None
+    for i, live_dp in enumerate(live_dps):
+        if live_dp.data is None:
+            continue
+        
+        if last_live_dp is not None and last_live_dp.data is not None and live_dp.data is not None:
+            diff_words = get_diff(last_live_dp.data.confirmed_words, live_dp.data.confirmed_words)
+            diff_words_end = [word.end for word in diff_words]
+            
+            if live_dp.data.audio_buffer_start_after is None or live_dp.data.audio_buffer_time is None:
+                continue
+            
+            processing_time = live_dp.end_time - live_dp.start_time
+            current_audio_buffer_time = live_dp.data.audio_buffer_start_after + live_dp.data.audio_buffer_time
+            output_time = current_audio_buffer_time + processing_time
+            
+            # current_audio_buffer_time - diff_words_end
+            diff_words_time = [output_time - end for end in diff_words_end]
+            diff.extend(diff_words_time)
+                
+            
+        last_live_dp = live_dp
+        
+    return statistics.mean(diff)
+
+
+# list[DataPackage[AudioData]]
+def stats(live_dps: List[DataPackage[data.AudioData]], transcript: List[data.Word]) -> Tuple[Statistics, Statistics, float]:
+
+    avg_time_difference = time_difference(live_dps)
+
+    if live_dps[-1].data is None:
+        raise ValueError("No data found")
+    live_words = live_dps[-1].data.confirmed_words
+
+    if live_words is None:
+        raise ValueError("No data found")
+    diff = compute_statistics(live_words, transcript)
 
     def to_lower_no_symbols(word: str) -> str:
         word_l = word.lower()
@@ -187,7 +234,7 @@ def stats(live: List[data.Word], transcript: List[data.Word]) -> Tuple[Statistic
             word.end,
             word.probability
         )
-        for word in live
+        for word in live_words
     ]
     transcript_clean = [
         data.Word(
@@ -201,4 +248,4 @@ def stats(live: List[data.Word], transcript: List[data.Word]) -> Tuple[Statistic
 
     diff2 = compute_statistics(live_clean, transcript_clean)
 
-    return diff, diff2
+    return diff, diff2, avg_time_difference
