@@ -164,38 +164,90 @@ def compute_statistics(
     )
 
 
-def time_difference(live_dps: List[DataPackage[data.AudioData]]) -> float:
+def _is_similar(word1: str, word2: str, max_diff_percantage: float = -1.0) -> bool:
+    def similarity_difflib(wort1: str, wort2: str) -> float:
+        matcher = difflib.SequenceMatcher(None, wort1, wort2)
+        return matcher.ratio()
+    
+    # Lowercase the words
+    word1_l = word1.lower()
+    word2_l = word2.lower()
+    
+    # Remove symbols and punctuation characters
+    def remove_symbols(word: str) -> str:
+        # Filter out characters classified as punctuation or symbols
+        return ''.join(
+            char for char in word 
+            if not unicodedata.category(char).startswith(('P', 'S'))
+        )
+    
+    word1_clean = remove_symbols(word1_l)
+    word2_clean = remove_symbols(word2_l)
+
+    if max_diff_percantage == -1.0:
+        return word1_clean == word2_clean
+    
+    diff = similarity_difflib(word1_clean, word2_clean)
+
+    return diff >= max_diff_percantage
+
+def time_difference(live_dps: List[DataPackage[data.AudioData]], transcript: List[data.Word], offset: float = 0.4) -> float:
     # get the difference between live_dps[n].data.confirmed_words and live_dps[n+1].data.confirmed_words
-    def get_diff(cw1: Optional[List[data.Word]], cw2: Optional[List[data.Word]]) -> List[data.Word]:
-        if cw1 is None or cw2 is None or len(cw1) == 0 or len(cw2) == 0:
-            return []
-        last_word_time = cw1[-1].end
-        diff_words = [word for word in cw2 if word.start >= last_word_time]
-        return diff_words
+    # def get_diff(cw1: Optional[List[data.Word]], cw2: Optional[List[data.Word]]) -> List[data.Word]:
+    #     if cw1 is None or cw2 is None or len(cw1) == 0 or len(cw2) == 0:
+    #         return []
+    #     last_word_time = cw1[-1].end
+    #     diff_words = [word for word in cw2 if word.start >= last_word_time]
+    #     return diff_words
+    
+    # List of transcript words to check if the word is found in the transcript
+    transcript_list: List[data.Word] = transcript.copy()
     
     diff: List[float] = []
-    last_live_dp: Optional[DataPackage[data.AudioData]] = None
+    # last_live_dp: Optional[DataPackage[data.AudioData]] = None
     for i, live_dp in enumerate(live_dps):
         if live_dp.data is None:
             continue
         
-        if last_live_dp is not None and last_live_dp.data is not None and live_dp.data is not None:
-            diff_words = get_diff(last_live_dp.data.confirmed_words, live_dp.data.confirmed_words)
-            diff_words_end = [word.end for word in diff_words]
+        if live_dp.data is not None:
+            # diff_words = get_diff(last_live_dp.data.confirmed_words, live_dp.data.confirmed_words)
             
-            if live_dp.data.audio_buffer_start_after is None or live_dp.data.audio_buffer_time is None:
-                continue
+            live_words_confimed = live_dp.data.confirmed_words
             
-            processing_time = live_dp.end_time - live_dp.start_time
-            current_audio_buffer_time = live_dp.data.audio_buffer_start_after + live_dp.data.audio_buffer_time
-            output_time = current_audio_buffer_time + processing_time
-            
-            # current_audio_buffer_time - diff_words_end
-            diff_words_time = [output_time - end for end in diff_words_end]
-            diff.extend(diff_words_time)
+            if live_words_confimed is not None:
+                
+                # only take the word if they are at the same time point +- offset in the transcript
+                correct_diff_words = []
+                to_remove = []
+                for tword in transcript_list:
+                    word_in_transcript = next((lw for lw in live_words_confimed if lw.start - offset <= tword.start <= lw.end + offset and _is_similar(lw.word, tword.word, 0.7)), None)
+                    if word_in_transcript is not None:
+                        correct_diff_words.append(tword)
+                        to_remove.append(tword)
+                        
+                # remove the words from the transcript list
+                for tword in to_remove:
+                    transcript_list.remove(tword)
+                
+                
+                
+                diff_words_end = [word.end for word in correct_diff_words]
+                
+                if live_dp.data.audio_buffer_start_after is None or live_dp.data.audio_buffer_time is None:
+                    continue
+                
+                processing_time = live_dp.end_time - live_dp.start_time
+                current_audio_buffer_time = live_dp.data.audio_buffer_start_after + live_dp.data.audio_buffer_time
+                output_time = current_audio_buffer_time + processing_time
+                
+                # current_audio_buffer_time - diff_words_end
+                diff_words_time = [output_time - end for end in diff_words_end]
+                diff.extend(diff_words_time)
+                print(f"{output_time}")
                 
             
         last_live_dp = live_dp
+        print(f"Timedifference: {len(diff)}/{len(transcript_list)} found")
         
     return statistics.mean(diff)
 
@@ -203,7 +255,7 @@ def time_difference(live_dps: List[DataPackage[data.AudioData]]) -> float:
 # list[DataPackage[AudioData]]
 def stats(live_dps: List[DataPackage[data.AudioData]], transcript: List[data.Word]) -> Tuple[Statistics, Statistics, float]:
 
-    avg_time_difference = time_difference(live_dps)
+    avg_time_difference = time_difference(live_dps, transcript)
 
     if live_dps[-1].data is None:
         raise ValueError("No data found")

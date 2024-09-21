@@ -1004,7 +1004,7 @@ def main() -> None:
                 del pipeline
 
                 with result_mutex:
-                    data_list = [dat.data for dat in result if dat.data is not None]
+                    data_list = [(dat.data, dat.start_time, dat.end_time) for dat in result if dat.data is not None]
                     with open(f"{new_file_beginning_sumulation}_simulation.pkl", 'wb') as file:
                         pickle.dump(data_list, file)
                         
@@ -1044,10 +1044,18 @@ def main() -> None:
 
             # Load the pkl file
             with open(f"{new_file_beginning_sumulation}_simulation.pkl", 'rb') as read_file:
-                live_data: List[data.AudioData] = pickle.load(read_file) # type: ignore
+                live_data: list[tuple[data.AudioData, float, float]] = pickle.load(read_file) # type: ignore
                 
             with open(f"{new_file_beginning}_transcript.pkl", 'rb') as read_file:
                 transcript_words: List[data.Word] = pickle.load(read_file) # type: ignore
+
+            live_dps: List[DataPackage[data.AudioData]] = [] # type: ignore
+            for da in live_data:
+                new_dp = DataPackage[data.AudioData]()
+                new_dp.data=da[0]
+                new_dp.start_time=da[1]
+                new_dp.end_time=da[2]
+                live_dps.append(new_dp)
 
             # cw = Confirm_Words()
             # for live_dp in live_dps:
@@ -1055,12 +1063,6 @@ def main() -> None:
             #         live_dp.data.confirmed_words = None
             #         live_dp.data.unconfirmed_words = None
             #     cw.execute(live_dp, DataPackageController(), DataPackagePhase(), DataPackageModule())
-
-            live_dps: List[DataPackage[data.AudioData]] = [] # type: ignore
-            for da in live_data:
-                new_dp = DataPackage[data.AudioData]()
-                new_dp.data=da
-                live_dps.append(new_dp)
 
             stat_sensetive, stat_insensetive, avg_time_difference = stats(live_dps, transcript_words)
             
