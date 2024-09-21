@@ -25,6 +25,7 @@ services:
       - ./.models:/app/.models
       - ./audio:/app/audio
       - ./simulate_results:/app/simulate_results
+      - ./logs:/app/logs
     command: ["python", "simulate.py"]
     ipc: host
     tty: true
