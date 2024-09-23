@@ -36,7 +36,9 @@ controllers = [
             PipelinePhase(
                 name="Create_Audio_Buffer",
                 modules=[
-                    Create_Audio_Buffer(),
+                    Create_Audio_Buffer(
+                        last_n_seconds=30
+                    ),
                     Rate_Limiter(),
                 ]
             )
@@ -79,7 +81,9 @@ controllers = [
             PipelinePhase(
                 name="OutputPhase",
                 modules=[
-                    Confirm_Words(),
+                    Confirm_Words(
+                        confirm_if_older_then=1.0
+                    ),
                 ]
             )
         ]
@@ -123,7 +127,7 @@ def main() -> None:
             processing_time = dp.total_time
             # log.info(f"{processing_time:2f}:  {dp.data.confirmed_words} +++ {dp.data.unconfirmed_words}")
             # log.info(f"{processing_time:2f}: cleaned_words:  {dp.data.transcribed_segments}")
-            
+
             
             # put dp.data.confirmed_words together with space
             only_words: List[data.Word] = []
