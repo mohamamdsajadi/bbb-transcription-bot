@@ -72,7 +72,20 @@ simulation_pipeline_list = [
     Simulation_Pipeline(
         name = "1-10s-2flowrate-batching-2confirm",
         prometheus_url = [
-            
+
+                Prometheus_URL(
+                    scheme=scheme,
+                    netloc=netloc,
+                    path="/stats",
+                    query={
+                        "server": graph_server,
+                        "query": "rate(module_success_time_sum{pipeline_id=\"PIPELINEID\"}[2s]) / rate(module_success_time_count{pipeline_id=\"PIPELINEID\"}[2s])|rate(pipeline_success_time_sum{pipeline_id=\"PIPELINEID\"}[2s]) / rate(pipeline_success_time_count{pipeline_id=\"PIPELINEID\"}[2s])",
+                        "start": "STARTTIME",
+                        "end": "ENDTIME",
+                        "label": "module_name|pipeline_name",
+                    }
+                ),
+
                 # Processing Time
                 Prometheus_URL(
                     scheme=scheme,
@@ -91,6 +104,19 @@ simulation_pipeline_list = [
                     }
                 ),
                 
+                Prometheus_URL(
+                    scheme=scheme,
+                    netloc=netloc,
+                    path="/stats",
+                    query={
+                        "server": graph_server,
+                        "query": "rate(pipeline_input_flowrate_total{pipeline_id=\"PIPELINEID\"}[2s])|rate(module_exit_flowrate_total{pipeline_id=\"PIPELINEID\"}[2s])",
+                        "start": "STARTTIME",
+                        "end": "ENDTIME",
+                        "label": "pipeline_name|module_name",
+                    }
+                ),
+                
                 # Exit flowrate of each model
                 Prometheus_URL(
                     scheme=scheme,
@@ -105,6 +131,19 @@ simulation_pipeline_list = [
                         "xlabel": "Zeit",
                         "ylabel": "Flowrate in Datenpackete pro Sekunde",
                         "legend": "true",
+                        "label": "pipeline_name|module_name",
+                    }
+                ),
+
+                Prometheus_URL(
+                    scheme=scheme,
+                    netloc=netloc,
+                    path="/stats",
+                    query={
+                        "server": graph_server,
+                        "query": "rate(pipeline_output_flowrate_total{pipeline_id=\"PIPELINEID\"}[2s])|rate(module_exit_flowrate_total{pipeline_id=\"PIPELINEID\", module_name=\"VAD-Module\"}[2s])",
+                        "start": "STARTTIME",
+                        "end": "ENDTIME",
                         "label": "pipeline_name|module_name",
                     }
                 ),
@@ -213,6 +252,20 @@ simulation_pipeline_list = [
         name = "2-10s-2flowrate-nobatching-2confirm",
         prometheus_url = [
             
+                # stats processing time
+                Prometheus_URL(
+                    scheme=scheme,
+                    netloc=netloc,
+                    path="/stats",
+                    query={
+                        "server": graph_server,
+                        "query": "rate(module_success_time_sum{pipeline_id=\"PIPELINEID\"}[2s]) / rate(module_success_time_count{pipeline_id=\"PIPELINEID\"}[2s])|rate(pipeline_success_time_sum{pipeline_id=\"PIPELINEID\"}[2s]) / rate(pipeline_success_time_count{pipeline_id=\"PIPELINEID\"}[2s])",
+                        "start": "STARTTIME",
+                        "end": "ENDTIME",
+                        "label": "module_name|pipeline_name",
+                    }
+                ),
+            
                 # Processing Time
                 Prometheus_URL(
                     scheme=scheme,
@@ -316,6 +369,20 @@ simulation_pipeline_list = [
         name = "3-30s-2flowrate-batching-2confirm",
         prometheus_url = [
             
+                # stats processing time
+                Prometheus_URL(
+                    scheme=scheme,
+                    netloc=netloc,
+                    path="/stats",
+                    query={
+                        "server": graph_server,
+                        "query": "rate(module_success_time_sum{pipeline_id=\"PIPELINEID\"}[3s]) / rate(module_success_time_count{pipeline_id=\"PIPELINEID\"}[3s])|rate(pipeline_success_time_sum{pipeline_id=\"PIPELINEID\"}[3s]) / rate(pipeline_success_time_count{pipeline_id=\"PIPELINEID\"}[3s])",
+                        "start": "STARTTIME",
+                        "end": "ENDTIME",
+                        "label": "module_name|pipeline_name",
+                    }
+                ),
+            
                 # Processing Time
                 Prometheus_URL(
                     scheme=scheme,
@@ -323,7 +390,7 @@ simulation_pipeline_list = [
                     path="/graph",
                     query={
                         "server": graph_server,
-                        "query": "rate(module_success_time_sum{pipeline_id=\"PIPELINEID\"}[2s]) / rate(module_success_time_count{pipeline_id=\"PIPELINEID\"}[2s])|rate(pipeline_success_time_sum{pipeline_id=\"PIPELINEID\"}[2s]) / rate(pipeline_success_time_count{pipeline_id=\"PIPELINEID\"}[2s])",
+                        "query": "rate(module_success_time_sum{pipeline_id=\"PIPELINEID\"}[3s]) / rate(module_success_time_count{pipeline_id=\"PIPELINEID\"}[3s])|rate(pipeline_success_time_sum{pipeline_id=\"PIPELINEID\"}[3s]) / rate(pipeline_success_time_count{pipeline_id=\"PIPELINEID\"}[3s])",
                         "start": "STARTTIME",
                         "end": "ENDTIME",
                         "title": "Verarbeitungszeit 30s AudioBuffer",
@@ -418,6 +485,20 @@ simulation_pipeline_list = [
         name = "4-30s-2flowrate-nobatching-2confirm",
         prometheus_url = [
             
+                # stats processing time
+                Prometheus_URL(
+                    scheme=scheme,
+                    netloc=netloc,
+                    path="/stats",
+                    query={
+                        "server": graph_server,
+                        "query": "rate(module_success_time_sum{pipeline_id=\"PIPELINEID\"}[3s]) / rate(module_success_time_count{pipeline_id=\"PIPELINEID\"}[3s])|rate(pipeline_success_time_sum{pipeline_id=\"PIPELINEID\"}[3s]) / rate(pipeline_success_time_count{pipeline_id=\"PIPELINEID\"}[3s])",
+                        "start": "STARTTIME",
+                        "end": "ENDTIME",
+                        "label": "module_name|pipeline_name",
+                    }
+                ),
+            
                 # Processing Time
                 Prometheus_URL(
                     scheme=scheme,
@@ -425,7 +506,7 @@ simulation_pipeline_list = [
                     path="/graph",
                     query={
                         "server": graph_server,
-                        "query": "rate(module_success_time_sum{pipeline_id=\"PIPELINEID\"}[2s]) / rate(module_success_time_count{pipeline_id=\"PIPELINEID\"}[2s])|rate(pipeline_success_time_sum{pipeline_id=\"PIPELINEID\"}[2s]) / rate(pipeline_success_time_count{pipeline_id=\"PIPELINEID\"}[2s])",
+                        "query": "rate(module_success_time_sum{pipeline_id=\"PIPELINEID\"}[3s]) / rate(module_success_time_count{pipeline_id=\"PIPELINEID\"}[3s])|rate(pipeline_success_time_sum{pipeline_id=\"PIPELINEID\"}[3s]) / rate(pipeline_success_time_count{pipeline_id=\"PIPELINEID\"}[3s])",
                         "start": "STARTTIME",
                         "end": "ENDTIME",
                         "title": "Verarbeitungszeit 30s AudioBuffer",
@@ -518,7 +599,7 @@ simulation_pipeline_list = [
         
         
         
-        
+
 
 
     Simulation_Pipeline(
@@ -863,6 +944,359 @@ simulation_pipeline_list = [
             ],         
         ),
     ),
+
+
+
+
+
+
+
+
+
+
+
+    Simulation_Pipeline(
+        name = "5-30s-2flowrate-batching-0confirm",
+        prometheus_url = [
+            ],
+        pipeline = Pipeline[data.AudioData](name="Pipeline", controllers_or_phases=[
+                PipelineController(
+                    mode=ControllerMode.NOT_PARALLEL,
+                    max_workers=1,
+                    queue_size=10,
+                    name="Create_Audio_Buffer",
+                    phases=[
+                        PipelinePhase(
+                            name="Create_Audio_Buffer",
+                            modules=[
+                                Create_Audio_Buffer(
+                                        last_n_seconds=30,
+                                    ),
+                                Rate_Limiter(
+                                        flowrate_per_second=2,
+                                    ),
+                            ]
+                        )
+                    ]
+                ),
+                PipelineController(
+                    mode=ControllerMode.FIRST_WINS,
+                    max_workers=10,
+                    queue_size=2,
+                    name="AudioPreprocessingController",
+                    phases=[
+                        PipelinePhase(
+                            name="VADPhase",
+                            modules=[
+                                Convert_Audio(),
+                                VAD(
+                                        max_chunk_size=30,
+                                        last_time_spoken_offset=3.0,
+                                    ),
+                            ]
+                        )
+                    ]
+                ),
+                PipelineController(
+                    mode=ControllerMode.FIRST_WINS,
+                    max_workers=1,
+                    queue_size=0,
+                    name="MainProcessingController",
+                    phases=[
+                        PipelinePhase(
+                            name="WhisperPhase",
+                            modules=[
+                                Faster_Whisper_transcribe(
+                                        model_size="large-v3",
+                                        task="transcribe",
+                                        compute_type="float16",
+                                        batching=True,
+                                        batch_size=32,
+                                    ),
+                            ]
+                        )
+                    ]
+                ),
+                PipelineController(
+                    mode=ControllerMode.NOT_PARALLEL,
+                    max_workers=1,
+                    name="OutputController",
+                    phases=[
+                        PipelinePhase(
+                            name="OutputPhase",
+                            modules=[
+                                Confirm_Words(
+                                        max_confirmed_words=0,
+                                        confirm_if_older_then=0.0,
+                                    ),
+                            ]
+                        )
+                    ]
+                )
+            ],         
+        ),
+    ),
+        
+        
+        
+
+
+
+    Simulation_Pipeline(
+        name = "6-30s-2flowrate-batching-1confirm",
+        prometheus_url = [
+            ],
+        pipeline = Pipeline[data.AudioData](name="Pipeline", controllers_or_phases=[
+                PipelineController(
+                    mode=ControllerMode.NOT_PARALLEL,
+                    max_workers=1,
+                    queue_size=10,
+                    name="Create_Audio_Buffer",
+                    phases=[
+                        PipelinePhase(
+                            name="Create_Audio_Buffer",
+                            modules=[
+                                Create_Audio_Buffer(
+                                        last_n_seconds=30,
+                                    ),
+                                Rate_Limiter(
+                                        flowrate_per_second=2,
+                                    ),
+                            ]
+                        )
+                    ]
+                ),
+                PipelineController(
+                    mode=ControllerMode.FIRST_WINS,
+                    max_workers=3,
+                    queue_size=2,
+                    name="AudioPreprocessingController",
+                    phases=[
+                        PipelinePhase(
+                            name="VADPhase",
+                            modules=[
+                                Convert_Audio(),
+                                VAD(
+                                        max_chunk_size=30,
+                                        last_time_spoken_offset=3.0,
+                                    ),
+                            ]
+                        )
+                    ]
+                ),
+                PipelineController(
+                    mode=ControllerMode.FIRST_WINS,
+                    max_workers=1,
+                    queue_size=0,
+                    name="MainProcessingController",
+                    phases=[
+                        PipelinePhase(
+                            name="WhisperPhase",
+                            modules=[
+                                Faster_Whisper_transcribe(
+                                        model_size="large-v3",
+                                        task="transcribe",
+                                        compute_type="float16",
+                                        batching=True,
+                                        batch_size=32,
+                                    ),
+                            ]
+                        )
+                    ]
+                ),
+                PipelineController(
+                    mode=ControllerMode.NOT_PARALLEL,
+                    max_workers=1,
+                    name="OutputController",
+                    phases=[
+                        PipelinePhase(
+                            name="OutputPhase",
+                            modules=[
+                                Confirm_Words(
+                                        max_confirmed_words=0,
+                                        confirm_if_older_then=1.0,
+                                    ),
+                            ]
+                        )
+                    ]
+                )
+            ],         
+        ),
+    ),
+        
+        
+        
+
+
+
+    Simulation_Pipeline(
+        name = "7-30s-2flowrate-batching-2confirm",
+        prometheus_url = [
+            ],
+        pipeline = Pipeline[data.AudioData](name="Pipeline", controllers_or_phases=[
+                PipelineController(
+                    mode=ControllerMode.NOT_PARALLEL,
+                    max_workers=1,
+                    queue_size=10,
+                    name="Create_Audio_Buffer",
+                    phases=[
+                        PipelinePhase(
+                            name="Create_Audio_Buffer",
+                            modules=[
+                                Create_Audio_Buffer(
+                                        last_n_seconds=30,
+                                    ),
+                                Rate_Limiter(
+                                        flowrate_per_second=2,
+                                    ),
+                            ]
+                        )
+                    ]
+                ),
+                PipelineController(
+                    mode=ControllerMode.FIRST_WINS,
+                    max_workers=3,
+                    queue_size=2,
+                    name="AudioPreprocessingController",
+                    phases=[
+                        PipelinePhase(
+                            name="VADPhase",
+                            modules=[
+                                Convert_Audio(),
+                                VAD(
+                                        max_chunk_size=30,
+                                        last_time_spoken_offset=3.0,
+                                    ),
+                            ]
+                        )
+                    ]
+                ),
+                PipelineController(
+                    mode=ControllerMode.FIRST_WINS,
+                    max_workers=1,
+                    queue_size=0,
+                    name="MainProcessingController",
+                    phases=[
+                        PipelinePhase(
+                            name="WhisperPhase",
+                            modules=[
+                                Faster_Whisper_transcribe(
+                                        model_size="large-v3",
+                                        task="transcribe",
+                                        compute_type="float16",
+                                        batching=True,
+                                        batch_size=32,
+                                    ),
+                            ]
+                        )
+                    ]
+                ),
+                PipelineController(
+                    mode=ControllerMode.NOT_PARALLEL,
+                    max_workers=1,
+                    name="OutputController",
+                    phases=[
+                        PipelinePhase(
+                            name="OutputPhase",
+                            modules=[
+                                Confirm_Words(
+                                        max_confirmed_words=0,
+                                        confirm_if_older_then=2.0,
+                                    ),
+                            ]
+                        )
+                    ]
+                )
+            ],         
+        ),
+    ),
+        
+        
+
+
+
+
+    Simulation_Pipeline(
+        name = "8-30s-2flowrate-batching-3confirm",
+        prometheus_url = [
+            ],
+        pipeline = Pipeline[data.AudioData](name="Pipeline", controllers_or_phases=[
+                PipelineController(
+                    mode=ControllerMode.NOT_PARALLEL,
+                    max_workers=1,
+                    queue_size=10,
+                    name="Create_Audio_Buffer",
+                    phases=[
+                        PipelinePhase(
+                            name="Create_Audio_Buffer",
+                            modules=[
+                                Create_Audio_Buffer(
+                                        last_n_seconds=30,
+                                    ),
+                                Rate_Limiter(
+                                        flowrate_per_second=2,
+                                    ),
+                            ]
+                        )
+                    ]
+                ),
+                PipelineController(
+                    mode=ControllerMode.FIRST_WINS,
+                    max_workers=3,
+                    queue_size=2,
+                    name="AudioPreprocessingController",
+                    phases=[
+                        PipelinePhase(
+                            name="VADPhase",
+                            modules=[
+                                Convert_Audio(),
+                                VAD(
+                                        max_chunk_size=30,
+                                        last_time_spoken_offset=3.0,
+                                    ),
+                            ]
+                        )
+                    ]
+                ),
+                PipelineController(
+                    mode=ControllerMode.FIRST_WINS,
+                    max_workers=1,
+                    queue_size=0,
+                    name="MainProcessingController",
+                    phases=[
+                        PipelinePhase(
+                            name="WhisperPhase",
+                            modules=[
+                                Faster_Whisper_transcribe(
+                                        model_size="large-v3",
+                                        task="transcribe",
+                                        compute_type="float16",
+                                        batching=True,
+                                        batch_size=32,
+                                    ),
+                            ]
+                        )
+                    ]
+                ),
+                PipelineController(
+                    mode=ControllerMode.NOT_PARALLEL,
+                    max_workers=1,
+                    name="OutputController",
+                    phases=[
+                        PipelinePhase(
+                            name="OutputPhase",
+                            modules=[
+                                Confirm_Words(
+                                        max_confirmed_words=0,
+                                        confirm_if_older_then=3.0,
+                                    ),
+                            ]
+                        )
+                    ]
+                )
+            ],         
+        ),
+    ),
 ]
 
 
@@ -1019,20 +1453,43 @@ def main() -> None:
                     
                     url_copy = url.copy()
                     
-                    url_copy.query["query"] = url_copy.query["query"].replace("PIPELINEID", pipeline_id)
-                    url_copy.query["start"] = start
-                    url_copy.query["end"] = end
-                    print(url_copy)
-                
-                    response = requests.get(url_copy)
+                    if url_copy.path == "/graph":
+                        url_copy.query["query"] = url_copy.query["query"].replace("PIPELINEID", pipeline_id)
+                        url_copy.query["start"] = start
+                        url_copy.query["end"] = end
+                        print(url_copy)
+                    
+                        response = requests.get(url_copy)
 
-                    # Check if the request was successful
-                    if response.status_code == 200:
-                        # Save the content as an image file
-                        with open(f"{new_file_beginning_sumulation}_{i}_graph.png", 'wb') as file:
-                            file.write(response.content)
-                    else:
-                        print(f"Failed to download image. Status code: {response.status_code}")
+                        # Check if the request was successful
+                        if response.status_code == 200:
+                            # Save the content as an image file
+                            with open(f"{new_file_beginning_sumulation}_{i}_graph.png", 'wb') as file:
+                                file.write(response.content)
+                        else:
+                            print(f"Failed to download image. Status code: {response.status_code}")
+                            
+                    elif url_copy.path == "/stats":
+                        url_copy.query["query"] = url_copy.query["query"].replace("PIPELINEID", pipeline_id)
+                        url_copy.query["start"] = start
+                        url_copy.query["end"] = end
+                        print(url_copy)
+                    
+                        statsresponse = requests.get(url_copy)
+
+                        if statsresponse.status_code == 200:
+                            try:
+                                # Attempt to parse the content as JSON
+                                response_data = statsresponse.json()
+                                
+                                # Save the content as a JSON file
+                                with open(f"{new_file_beginning_sumulation}_{i}_stats.json", 'w') as statsfile:
+                                    import json
+                                    json.dump(response_data, statsfile, indent=4)
+                            except ValueError:
+                                print("Failed to parse the response as JSON.")
+                        else:
+                            print(f"Failed to download data. Status code: {statsresponse.status_code}")
                         
 
             if not os.path.exists(f"{new_file_beginning}_transcript.pkl"):
@@ -1064,9 +1521,9 @@ def main() -> None:
             #         live_dp.data.unconfirmed_words = None
             #     cw.execute(live_dp, DataPackageController(), DataPackagePhase(), DataPackageModule())
 
-            stat_sensetive, stat_insensetive, avg_time_difference = stats(live_dps, transcript_words)
+            stat_sensetive, stat_insensetive, avg_time_difference, std_dev, mad = stats(live_dps, transcript_words)
             
-            def save_stats(stats_sensetive, stats_insensetive, stat_avg_time_difference) -> None:
+            def save_stats(stats_sensetive, stats_insensetive, stat_avg_time_difference, stat_std_dev, stat_mad) -> None:
                 # Function to format statistics as JSON
                 def stats_to_json(stat: Statistics) -> str:
                     return json.dumps({
@@ -1087,7 +1544,9 @@ def main() -> None:
                     file.write(f"-------------------------------------------------------------------\n")
                     file.write(f"File: {file_path}\n")
                     file.write(f"-------------------------------------------------------------------\n")
-                    file.write(f"Average time difference between live and transcript: {avg_time_difference * 1000:.1f} milliseconds\n")
+                    file.write(f"Average time difference between live and transcript: {stat_avg_time_difference * 1000:.1f} milliseconds\n")
+                    file.write(f"Standard deviation of time difference: {stat_std_dev * 1000:.1f} milliseconds\n")
+                    file.write(f"Mean absolute deviation of time difference: {stat_mad * 1000:.1f} milliseconds\n")
                     file.write(f"-------------------------------------------------------------------\n")
                     file.write(f"Statistics for case sensitive:\n")
                     file.write(f"Number of words missing in live (Deletions): {len(stats_sensetive.deletions)}\n")
@@ -1112,7 +1571,7 @@ def main() -> None:
                     file.write(stats_to_json(stats_insensetive) + "\n")
                 
             print(f"File: {folder_name}")
-            save_stats(stat_sensetive, stat_insensetive, avg_time_difference)
+            save_stats(stat_sensetive, stat_insensetive, avg_time_difference, std_dev, mad)
             
             try:
                 subprocess.run(['chmod', '777', output_folder, '-R'])
