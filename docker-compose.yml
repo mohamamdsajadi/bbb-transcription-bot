@@ -3,8 +3,8 @@ services:
     image: prom/prometheus:latest
     container_name: prometheus
     restart: always
-    ports:
-      - 1000:9090
+    # ports:
+    #   - 1000:9090
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     networks:
@@ -17,8 +17,8 @@ services:
       dockerfile: Dockerfile
     networks:
       - transcription
-    ports:
-      - 8042:8042
+    # ports:
+    #   - 8042:8042
     env_file:
       - .env
     volumes:
@@ -26,7 +26,7 @@ services:
       - ./audio:/app/audio
       - ./simulate_results:/app/simulate_results
       - ./logs:/app/logs
-    command: ["python", "simulate.py"]
+    # command: ["python", "simulate.py"]
     ipc: host
     tty: true
     stdin_open: true
@@ -40,7 +40,7 @@ services:
   bot:
     container_name: bot
     build:
-      context: /home/user/vor/bbb-translation-bot/client
+      context: ./bbb-bot
       dockerfile: Dockerfile
     env_file:
       - .env
@@ -57,8 +57,8 @@ services:
       dockerfile: Dockerfile
     networks:
       - transcription
-    ports:
-      - "5051:5051"
+    # ports:
+    #   - "5051:5051"
 
   prometheus-to-graph:
     container_name: prometheus-to-graph
@@ -67,8 +67,8 @@ services:
       dockerfile: Dockerfile
     networks:
       - transcription
-    ports:
-      - 5000:5000
+    # ports:
+    #   - 5000:5000
 
 networks:
   transcription:
