@@ -82,7 +82,8 @@ controllers = [
                 name="OutputPhase",
                 modules=[
                     Confirm_Words(
-                        confirm_if_older_then=1.0
+                        confirm_if_older_then=1.0,
+                        max_confirmed_words=50
                     ),
                 ]
             )
@@ -133,9 +134,6 @@ def main() -> None:
             only_words: List[data.Word] = []
             for word in dp.data.confirmed_words:
                 only_words.append(word)
-                
-            if len(only_words) > 50:
-                only_words = only_words[-50:]
             
             text = ""
             for word in only_words:
