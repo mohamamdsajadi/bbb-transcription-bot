@@ -4,7 +4,7 @@
 
 ## Overview
 
-This project is part of my bachelor's thesis and serves as a pipeline for processing the audio stream from [BigBlueButton (BBB)](https://bigbluebutton.org/). It utilizes a [BBB bot](https://github.com/bigbluebutton-bot/bigbluebutton-bot) to add live subtitles to BBB meetings by converting live speech into text in real-time.
+This project is part of my bachelor's thesis and serves as a pipeline for processing the audio stream from [BigBlueButton (BBB)](https://bigbluebutton.org/). It utilizes a [BBB bot](https://github.com/bigbluebutton-bot/bigbluebutton-bot) to add live subtitles to BBB meetings by converting live speech into text in real-time. It uses the [stream_pipeline](https://github.com/JulianKropp/stream_pipeline)-framework to process the audio stream.
 
 **🚧Note:** This project is no longer actively developed here. For ongoing development, please visit the [BBB Translation Bot repository](https://github.com/bigbluebutton-bot/bbb-translation-bot).
 
