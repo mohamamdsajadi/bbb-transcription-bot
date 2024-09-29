@@ -1,0 +1,72 @@
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: always
+    # ports:
+    #   - 1000:9090
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - transcription
+
+  transcription-server:
+    container_name: transcription-server
+    build:
+      context: .
+      dockerfile: Dockerfile
+    networks:
+      - transcription
+    # ports:
+    #   - 8042:8042
+    env_file:
+      - .env
+    volumes:
+      - ./.models:/app/.models
+      - ./logs:/app/logs
+    ipc: host
+    tty: true
+    stdin_open: true
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            capabilities: [gpu]
+
+  bot:
+    container_name: bot
+    build:
+      context: ./bbb-bot
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    networks:
+      - transcription
+    depends_on:
+      - changeset-server
+      - transcription-server
+
+  changeset-server:
+    container_name: changeset-server
+    build:
+      context: https://github.com/bigbluebutton-bot/changeset-grpc.git
+      dockerfile: Dockerfile
+    networks:
+      - transcription
+    # ports:
+    #   - "5051:5051"
+
+  prometheus-to-graph:
+    container_name: prometheus-to-graph
+    build:
+      context: https://github.com/JulianKropp/prometheus_to_graph.git
+      dockerfile: Dockerfile
+    networks:
+      - transcription
+    # ports:
+    #   - 5000:5000
+
+networks:
+  transcription:
+    driver: bridge

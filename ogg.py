@@ -386,10 +386,17 @@ class Ogg_OPUS_Audio:
         self.duration = complete_duration
             
             
-            
+def calculate_page_duration(current_granule_position: int, previous_granule_position: Optional[int], sample_rate: int = 48000) -> float:
+    if previous_granule_position is None:
+        return 0.0  # Default value for the first frame
+    samples = current_granule_position - previous_granule_position
+    duration = samples / sample_rate
+    return duration            
+
+
 
 def __main__() -> None:
-    file_path: str = 'audio/audio.ogg'
+    file_path: str = 'audio/bbb.ogg'
     
     ogg_data: bytes = b""
     try:
