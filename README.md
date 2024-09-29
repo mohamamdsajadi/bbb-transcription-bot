@@ -15,12 +15,50 @@ This project is part of my bachelor's thesis and serves as a pipeline for proces
 - **Simulation Mode:** Allows testing the transcription pipeline with pre-recorded audio files.
 - **Modular Architecture:** Each module handles a specific task within the pipeline, ensuring scalability and maintainability.
 
-## Installation
+## Getting Started
 
-### Prerequisites
+Follow these simple steps to quickly set up the BBB-Translation-Bot.
 
-- [Docker](https://www.docker.com/get-started) installed on your system.
-- [Docker Compose](https://docs.docker.com/compose/install/) installed.
+### Hardware
+This setup was testet with a Nvidia RTX 2070 and RTX 3070 GPU. The GPU is used for the transcription and translation of the audio stream.
+
+### Install Nvidia drivers for Ubuntu:
+Refer to the official [Nvidia documentation](https://docs.nvidia.com/datacenter/tesla/tesla-installation-notes/index.html#ubuntu-lts):
+```bash
+sudo apt update
+sudo apt install linux-headers-$(uname -r)
+distribution=$(. /etc/os-release;echo $ID$VERSION_ID | sed -e 's/\.//g')
+wget https://developer.download.nvidia.com/compute/cuda/repos/$distribution/x86_64/cuda-keyring_1.0-1_all.deb
+sudo dpkg -i cuda-keyring_1.0-1_all.deb
+sudo apt update
+sudo apt -y install cuda-drivers
+sudo reboot now
+```
+
+### Docker with GPU support
+Ensure Docker with GPU support is installed on your system:
+Refer to the official [Nvidia documentation](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
+
+```bash
+sudo apt update
+
+curl -sSL https://get.docker.com | sh
+
+curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
+  && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+    sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+    sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list \
+  && \
+    sudo apt-get update
+
+sudo apt install nvidia-container-runtime
+
+which nvidia-container-runtime-hook
+
+sudo systemctl restart docker
+
+docker run -it --rm --gpus all ubuntu nvidia-smi # Test GPU support
+```
 
 ### Setup
 
@@ -32,6 +70,7 @@ This project is part of my bachelor's thesis and serves as a pipeline for proces
    ```
 
 2. **Configure Environment Variables:**
+    If you only want to run the simulation, you can skip this step. And go to [Simulation](#simulation)
 
    - Duplicate the `.env_example` file and rename it to `.env`.
 
