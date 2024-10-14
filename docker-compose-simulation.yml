@@ -19,46 +19,21 @@ services:
       - transcription
     # ports:
     #   - 8042:8042
-    env_file:
-      - .env
     volumes:
       - ./.models:/app/.models
       - ./audio:/app/audio
       - ./simulate_results:/app/simulate_results
       - ./logs:/app/logs
     command: ["python", "simulate.py"]
-    ipc: host
-    tty: true
-    stdin_open: true
+    # # command: ["sleep", "infinity"]
     deploy:
       resources:
         reservations:
           devices:
-          - driver: nvidia
-            capabilities: [gpu]
-
-  bot:
-    container_name: bot
-    build:
-      context: ./bbb-bot
-      dockerfile: Dockerfile
-    env_file:
-      - .env
-    networks:
-      - transcription
-    depends_on:
-      - changeset-server
-      - transcription-server
-
-  changeset-server:
-    container_name: changeset-server
-    build:
-      context: https://github.com/bigbluebutton-bot/changeset-grpc.git
-      dockerfile: Dockerfile
-    networks:
-      - transcription
-    # ports:
-    #   - "5051:5051"
+            - driver: nvidia
+              count: -1
+              capabilities: ["gpu"]
+    restart: "no"
 
   prometheus-to-graph:
     container_name: prometheus-to-graph
