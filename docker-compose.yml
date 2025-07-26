@@ -22,15 +22,7 @@ services:
     env_file:
       - .env
     volumes:
-      - ./.models:/app/.models
       - ./logs:/app/logs
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: -1
-              capabilities: ["gpu"]
     restart: "no"
 
   bot:

@@ -3,12 +3,10 @@ import difflib
 import statistics
 import time
 import unicodedata
-import torch
 from difflib import SequenceMatcher
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
-from faster_whisper import WhisperModel, BatchedInferencePipeline # type: ignore
-import torch
+import websocket
 
 from ogg import Ogg_OPUS_Audio, OggS_Page, calculate_page_duration
 import data
@@ -43,34 +41,44 @@ def simulate_live_audio_stream(file_path: str, callback: Callable[[bytes], None]
         
         
 
-def transcribe_audio(audio_path: str, model_path: Optional[str]) -> List[data.Word]:
-    # Configuration for the Whisper model
-    model_size = "large-v3"
-    compute_type = "float16"  # Options: "float16" or "int8"
-    batch_size = 32
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+def transcribe_audio(audio_path: str, url: Optional[str] = None) -> List[data.Word]:
+    """Transcribe an audio file using the WebSocket STT service."""
 
-    # Load the Whisper model
-    print(f"Loading Whisper model: '{model_size}' on {device}...")
-    model = WhisperModel(model_size, device=device, compute_type=compute_type, download_root=model_path)
-    batched_model = BatchedInferencePipeline(model=model)
-    print("Whisper model loaded successfully!")
+    stt_url = url or os.getenv("STT_WS_URL", "")
+    if not stt_url:
+        raise ValueError("STT_WS_URL not configured")
 
-    # Transcribe the audio using the model
-    segments, info = batched_model.transcribe(audio_path, batch_size=batch_size, word_timestamps=True)
+    with open(audio_path, "rb") as file:
+        audio_bytes = file.read()
 
-    # Convert segments to TextSegment objects
-    result = []
-    for segment in segments:
-        if segment.words:
-            for word in segment.words:
-                w = data.Word(
-                    word=word.word,
-                    start=word.start,
-                    end=word.end,
-                    probability=word.probability
-                )
-                result.append(w)
+    try:
+        ws = websocket.create_connection(stt_url)
+        ws.send_binary(audio_bytes)
+        response = ws.recv()
+        ws.close()
+    except Exception as exc:
+        raise RuntimeError(f"WebSocket STT error: {exc}")
+
+    try:
+        payload = json.loads(response)
+    except Exception as exc:
+        raise RuntimeError(f"Invalid STT response: {exc}")
+
+    result: List[data.Word] = []
+    if isinstance(payload, dict) and "segments" in payload:
+        for seg in payload["segments"]:
+            if seg.get("words"):
+                for w in seg["words"]:
+                    result.append(
+                        data.Word(
+                            word=str(w.get("word", "")),
+                            start=float(w.get("start", 0.0)),
+                            end=float(w.get("end", 0.0)),
+                            probability=float(w.get("probability", 1.0)),
+                        )
+                    )
+    else:
+        log.warning("STT response did not contain segments")
 
     return result
 

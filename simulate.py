@@ -19,7 +19,7 @@ from stream_pipeline.pipeline import Pipeline, ControllerMode, PipelinePhase, Pi
 
 from m_convert_audio import Convert_Audio
 from m_create_audio_buffer import Create_Audio_Buffer
-from m_faster_whisper import Faster_Whisper_transcribe
+from m_websocket_stt import WebSocket_STT
 from m_confirm_words import Confirm_Words
 from m_rate_limiter import Rate_Limiter
 from m_vad import VAD
@@ -30,8 +30,6 @@ from simulate_live_audio_stream import Statistics, simulate_live_audio_stream, s
 log = logger.setup_logging()
 
 start_http_server(8042)
-
-faster_whisper_model_path: str = ".models/faster-whisper"
 
 
 
@@ -63,7 +61,7 @@ class Simulation_Pipeline:
     prometheus_url: List[Prometheus_URL]
     pipeline: Pipeline
 
-# CreateNsAudioPackage, Load_audio, VAD, Faster_Whisper_transcribe, Local_Agreement
+# CreateNsAudioPackage, Load_audio, VAD, WebSocket_STT, Local_Agreement
 scheme = "http"
 netloc = "prometheus-to-graph:5000"
 graph_server = "http://prometheus:9090"
@@ -213,13 +211,7 @@ simulation_pipeline_list = [
                         PipelinePhase(
                             name="WhisperPhase",
                             modules=[
-                                Faster_Whisper_transcribe(
-                                        model_size="large-v3",
-                                        task="transcribe",
-                                        compute_type="float16",
-                                        batching=True,
-                                        batch_size=32,
-                                    ),
+                                WebSocket_STT(),
                             ]
                         )
                     ]
@@ -331,13 +323,7 @@ simulation_pipeline_list = [
                         PipelinePhase(
                             name="WhisperPhase",
                             modules=[
-                                Faster_Whisper_transcribe(
-                                        model_size="large-v3",
-                                        task="transcribe",
-                                        compute_type="float16",
-                                        batching=False,
-                                        batch_size=32,
-                                    ),
+                                WebSocket_STT(),
                             ]
                         )
                     ]
@@ -448,13 +434,7 @@ simulation_pipeline_list = [
                         PipelinePhase(
                             name="WhisperPhase",
                             modules=[
-                                Faster_Whisper_transcribe(
-                                        model_size="large-v3",
-                                        task="transcribe",
-                                        compute_type="float16",
-                                        batching=True,
-                                        batch_size=32,
-                                    ),
+                                WebSocket_STT(),
                             ]
                         )
                     ]
@@ -564,13 +544,7 @@ simulation_pipeline_list = [
                         PipelinePhase(
                             name="WhisperPhase",
                             modules=[
-                                Faster_Whisper_transcribe(
-                                        model_size="large-v3",
-                                        task="transcribe",
-                                        compute_type="float16",
-                                        batching=False,
-                                        batch_size=32,
-                                    ),
+                                WebSocket_STT(),
                             ]
                         )
                     ]
@@ -653,13 +627,7 @@ simulation_pipeline_list = [
                         PipelinePhase(
                             name="WhisperPhase",
                             modules=[
-                                Faster_Whisper_transcribe(
-                                        model_size="large-v3",
-                                        task="transcribe",
-                                        compute_type="float16",
-                                        batching=True,
-                                        batch_size=32,
-                                    ),
+                                WebSocket_STT(),
                             ]
                         )
                     ]
@@ -740,13 +708,7 @@ simulation_pipeline_list = [
                         PipelinePhase(
                             name="WhisperPhase",
                             modules=[
-                                Faster_Whisper_transcribe(
-                                        model_size="large-v3",
-                                        task="transcribe",
-                                        compute_type="float16",
-                                        batching=True,
-                                        batch_size=32,
-                                    ),
+                                WebSocket_STT(),
                             ]
                         )
                     ]
@@ -827,13 +789,7 @@ simulation_pipeline_list = [
                         PipelinePhase(
                             name="WhisperPhase",
                             modules=[
-                                Faster_Whisper_transcribe(
-                                        model_size="large-v3",
-                                        task="transcribe",
-                                        compute_type="float16",
-                                        batching=True,
-                                        batch_size=32,
-                                    ),
+                                WebSocket_STT(),
                             ]
                         )
                     ]
@@ -914,13 +870,7 @@ simulation_pipeline_list = [
                         PipelinePhase(
                             name="WhisperPhase",
                             modules=[
-                                Faster_Whisper_transcribe(
-                                        model_size="large-v3",
-                                        task="transcribe",
-                                        compute_type="float16",
-                                        batching=True,
-                                        batch_size=32,
-                                    ),
+                                WebSocket_STT(),
                             ]
                         )
                     ]
@@ -1006,13 +956,7 @@ simulation_pipeline_list = [
                         PipelinePhase(
                             name="WhisperPhase",
                             modules=[
-                                Faster_Whisper_transcribe(
-                                        model_size="large-v3",
-                                        task="transcribe",
-                                        compute_type="float16",
-                                        batching=True,
-                                        batch_size=32,
-                                    ),
+                                WebSocket_STT(),
                             ]
                         )
                     ]
@@ -1093,13 +1037,7 @@ simulation_pipeline_list = [
                         PipelinePhase(
                             name="WhisperPhase",
                             modules=[
-                                Faster_Whisper_transcribe(
-                                        model_size="large-v3",
-                                        task="transcribe",
-                                        compute_type="float16",
-                                        batching=True,
-                                        batch_size=32,
-                                    ),
+                                WebSocket_STT(),
                             ]
                         )
                     ]
@@ -1180,13 +1118,7 @@ simulation_pipeline_list = [
                         PipelinePhase(
                             name="WhisperPhase",
                             modules=[
-                                Faster_Whisper_transcribe(
-                                        model_size="large-v3",
-                                        task="transcribe",
-                                        compute_type="float16",
-                                        batching=True,
-                                        batch_size=32,
-                                    ),
+                                WebSocket_STT(),
                             ]
                         )
                     ]
@@ -1267,13 +1199,7 @@ simulation_pipeline_list = [
                         PipelinePhase(
                             name="WhisperPhase",
                             modules=[
-                                Faster_Whisper_transcribe(
-                                        model_size="large-v3",
-                                        task="transcribe",
-                                        compute_type="float16",
-                                        batching=True,
-                                        batch_size=32,
-                                    ),
+                                WebSocket_STT(),
                             ]
                         )
                     ]
@@ -1493,7 +1419,7 @@ def main() -> None:
                         
 
             if not os.path.exists(f"{new_file_beginning}_transcript.pkl"):
-                transcript = transcribe_audio(file_path, faster_whisper_model_path)
+                transcript = transcribe_audio(file_path)
                 with open(f"{new_file_beginning}_transcript.pkl", 'wb') as file:
                     pickle.dump(transcript, file)
 

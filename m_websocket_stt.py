@@ -1,19 +1,23 @@
 # m_websocket_stt.py
 import json
+import os
 from typing import List, Optional
 
-from websocket import create_connection
+import websocket
 
-from stream_pipeline.data_package import DataPackage, DataPackageController, DataPackagePhase, DataPackageModule, Status
+from stream_pipeline.data_package import DataPackage, DataPackageController, DataPackagePhase, DataPackageModule
 from stream_pipeline.module_classes import Module, ModuleOptions
 
-import data
 import logger
+import data
 
 log = logger.get_logger()
 
+
 class WebSocket_STT(Module):
-    def __init__(self, ws_url: str = "ws://localhost:2700") -> None:
+    """Stream buffered audio to an external STT engine over WebSocket."""
+
+    def __init__(self, url: Optional[str] = None) -> None:
         super().__init__(
             ModuleOptions(
                 use_mutex=True,
@@ -21,59 +25,61 @@ class WebSocket_STT(Module):
             ),
             name="WebSocket-STT-Module",
         )
-        self.ws_url: str = ws_url
+        self.url: str = url or os.getenv("STT_WS_URL", "")
 
     def init_module(self) -> None:
-        pass
+        if not self.url:
+            raise Exception("STT_WS_URL not configured")
 
-    def execute(self, dp: DataPackage[data.AudioData], dpc: DataPackageController, dpp: DataPackagePhase, dpm: DataPackageModule) -> None:
-        if not dp.data:
-            raise Exception("No data found")
-        if dp.data.raw_audio_data is None:
+    def execute(
+        self,
+        dp: DataPackage[data.AudioData],
+        dpc: DataPackageController,
+        dpp: DataPackagePhase,
+        dpm: DataPackageModule,
+    ) -> None:
+        if not dp.data or dp.data.raw_audio_data is None:
             raise Exception("No audio data found")
+        if dp.data.audio_buffer_start_after is None:
+            raise Exception("No audio buffer start time found")
 
-        log.debug("Sending audio data to external STT")
+        audio_buffer_start_after = dp.data.audio_buffer_start_after
+
         try:
-            ws = create_connection(self.ws_url, timeout=self.timeout)
-            ws.send(dp.data.raw_audio_data, opcode=0x2)  # binary
-            message = ws.recv()
+            ws = websocket.create_connection(self.url)
+            ws.send_binary(dp.data.raw_audio_data)
+            response = ws.recv()
             ws.close()
         except Exception as e:
-            dpm.status = Status.EXIT
-            dpm.message = f"WebSocket error: {e}"
-            log.error(f"WebSocket error: {e}")
-            return
+            raise Exception(f"WebSocket STT error: {e}")
 
         try:
-            response = json.loads(message)
-        except json.JSONDecodeError as e:
-            dpm.status = Status.EXIT
-            dpm.message = f"Invalid JSON response: {e}"
-            log.error("Invalid JSON response from STT server")
-            return
+            payload = json.loads(response)
+        except Exception as e:
+            raise Exception(f"Invalid STT response: {e}")
 
         segments: List[data.TextSegment] = []
-        start_offset = dp.data.audio_buffer_start_after or 0.0
-        for seg in response.get("segments", []):
-            words: Optional[List[data.Word]] = None
-            word_items = seg.get("words")
-            if isinstance(word_items, list):
-                words = []
-                for w in word_items:
-                    words.append(
-                        data.Word(
-                            word=w.get("word", ""),
-                            start=float(w.get("start", 0.0)) + start_offset,
-                            end=float(w.get("end", 0.0)) + start_offset,
-                            probability=float(w.get("probability", 1.0)),
+        if isinstance(payload, dict) and "segments" in payload:
+            for seg in payload["segments"]:
+                words: List[data.Word] = []
+                if seg.get("words"):
+                    for w in seg["words"]:
+                        words.append(
+                            data.Word(
+                                word=str(w.get("word", "")),
+                                start=float(w.get("start", 0.0)) + audio_buffer_start_after,
+                                end=float(w.get("end", 0.0)) + audio_buffer_start_after,
+                                probability=float(w.get("probability", 1.0)),
+                            )
                         )
-                    )
-            ts = data.TextSegment(
-                text=seg.get("text", ""),
-                start=float(seg.get("start", 0.0)) + start_offset,
-                end=float(seg.get("end", 0.0)) + start_offset,
-                words=words,
-            )
-            segments.append(ts)
+                ts = data.TextSegment(
+                    text=str(seg.get("text", "")),
+                    start=float(seg.get("start", 0.0)) + audio_buffer_start_after,
+                    end=float(seg.get("end", 0.0)) + audio_buffer_start_after,
+                    words=words,
+                )
+                segments.append(ts)
+        else:
+            log.warning("STT response did not contain segments")
 
         dp.data.transcribed_segments = segments
