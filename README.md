@@ -103,8 +103,8 @@ The transcription pipeline is built using a modular architecture, where each mod
 
 5. **WebSocket STT Module**
 
-   - **Purpose:** Transcribes the buffered audio into text using an external speech-to-text engine.
-   - **Functionality:** Streams the audio buffer over WebSocket to the configured STT service and converts the returned transcript into internal data structures including word timings.
+   - **Purpose:** Sends the buffered audio to an external speech-to-text service over WebSocket.
+   - **Functionality:** Streams the audio buffer to the STT engine defined by `STT_WS_URL` and converts the returned JSON into timestamped text segments. This module replaces the built-in Whisper model when configured.
 
 6. **Confirm Words Module**
    

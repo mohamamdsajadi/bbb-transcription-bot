@@ -83,4 +83,3 @@ class WebSocket_STT(Module):
             log.warning("STT response did not contain segments")
 
         dp.data.transcribed_segments = segments
-

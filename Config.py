@@ -88,6 +88,7 @@ def load_settings() -> Dict[str, Union[str, int, float, bool]]:
         'SECRET_TOKEN': get_variable('TRANSCRIPTION_SERVER_SECRET', "your_secret_token"),
         'HEALTH_CHECK_PORT': get_variable('TRANSCRIPTION_SERVER_HEALTH_CHECK_PORT', 8001, validate_int),
         'PROMETHEUS_PORT': get_variable('TRANSCRIPTION_SERVER_PROMETHEUS_PORT', 2112, validate_int),
+        'STT_WS_URL': get_variable('STT_WS_URL', 'ws://localhost:2700'),
     }
 
     if not valid_config:

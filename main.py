@@ -24,7 +24,6 @@ import logger
 log = logger.setup_logging()
 
 start_http_server(8042)
-
 # CreateNsAudioPackage, Load_audio, VAD, WebSocket_STT, Local_Agreement
 controllers = [
     PipelineController(
@@ -112,6 +111,70 @@ def main() -> None:
     STATUS = "starting"
     
     settings = load_settings()
+
+    controllers = [
+        PipelineController(
+            mode=ControllerMode.NOT_PARALLEL,
+            max_workers=1,
+            queue_size=10,
+            name="Create_Audio_Buffer",
+            phases=[
+                PipelinePhase(
+                    name="Create_Audio_Buffer",
+                    modules=[
+                        Create_Audio_Buffer(last_n_seconds=30),
+                        Rate_Limiter(),
+                    ],
+                )
+            ],
+        ),
+        PipelineController(
+            mode=ControllerMode.FIRST_WINS,
+            max_workers=3,
+            queue_size=2,
+            name="AudioPreprocessingController",
+            phases=[
+                PipelinePhase(
+                    name="VADPhase",
+                    modules=[
+                        Convert_Audio(),
+                        VAD(),
+                    ],
+                )
+            ],
+        ),
+        PipelineController(
+            mode=ControllerMode.FIRST_WINS,
+            max_workers=1,
+            queue_size=0,
+            name="MainProcessingController",
+            phases=[
+                PipelinePhase(
+                    name="WhisperPhase",
+                    modules=[
+                        WebSocket_STT(ws_url=str(settings["STT_WS_URL"])),
+                    ],
+                )
+            ],
+        ),
+        PipelineController(
+            mode=ControllerMode.NOT_PARALLEL,
+            max_workers=1,
+            name="OutputController",
+            phases=[
+                PipelinePhase(
+                    name="OutputPhase",
+                    modules=[
+                        Confirm_Words(confirm_if_older_then=1.0, max_confirmed_words=50),
+                    ],
+                )
+            ],
+        ),
+    ]
+
+    pipeline = Pipeline[data.AudioData](controllers, name="WhisperPipeline")
+
+    instance = pipeline.register_instance()
 
     # Start the health http-server (flask) in a new thread.
     webserverthread = threading.Thread(target=app.run, kwargs={'debug': False, 'host': settings["HOST"], 'port': settings["HEALTH_CHECK_PORT"]})
