@@ -79,6 +79,7 @@ docker run -it --rm --gpus all ubuntu nvidia-smi # Test GPU support
      ```
 
    - Open the `.env` file and configure the necessary environment variables as per your setup.
+   - Set `STT_WS_URL` to point to your external speech-to-text WebSocket endpoint.
 
 3. **Start the Application:**
 
@@ -142,10 +143,10 @@ The transcription pipeline is built using a modular architecture, where each mod
    - **Purpose:** Identifies and isolates segments of the audio stream that contain speech.
    - **Functionality:** Detects speech activity to filter out silent passages, forwarding only relevant audio segments to the transcription model. Uses the same VAD model as WhisperX for enhanced accuracy and operates in a stateless, parallel mode.
 
-5. **Whisper Module**
-   
-   - **Purpose:** Transcribes the buffered audio into text.
-   - **Functionality:** Employs Faster Whisper to convert audio data into text, leveraging batching and word-level timestamps for improved efficiency and accuracy. Processes the 30-second audio buffer and integrates seamlessly with the VAD module's timestamps. This stateless module is designed for single-worker operation to optimize GPU usage.
+5. **WebSocket STT Module**
+
+   - **Purpose:** Sends the buffered audio to an external speech-to-text service over WebSocket.
+   - **Functionality:** Streams the audio buffer to the STT engine defined by `STT_WS_URL` and converts the returned JSON into timestamped text segments. This module replaces the built-in Whisper model when configured.
 
 6. **Confirm Words Module**
    
