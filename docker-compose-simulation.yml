@@ -20,19 +20,11 @@ services:
     # ports:
     #   - 8042:8042
     volumes:
-      - ./.models:/app/.models
       - ./audio:/app/audio
       - ./simulate_results:/app/simulate_results
       - ./logs:/app/logs
     command: ["python", "simulate.py"]
     # # command: ["sleep", "infinity"]
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: -1
-              capabilities: ["gpu"]
     restart: "no"
 
   prometheus-to-graph:

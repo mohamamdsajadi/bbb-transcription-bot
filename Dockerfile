@@ -1,10 +1,7 @@
-FROM nvidia/cuda:12.2.2-devel-ubuntu22.04 AS build-env
+FROM python:3.10-slim AS build-env
 
-RUN apt update && apt install -y git python3 python3-pip ffmpeg && \
-    ln -s /usr/bin/python3 /usr/bin/python && \
-    apt install -y --no-install-recommends \
-    libcudnn8 \
-    libcudnn8-dev
+RUN apt-get update && apt-get install -y git ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY requirements.txt ./
