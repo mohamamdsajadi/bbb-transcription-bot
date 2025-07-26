@@ -14,7 +14,7 @@ from StreamServer import Server, Client as StreamClient
 from Client import Client
 from m_convert_audio import Convert_Audio
 from m_create_audio_buffer import Create_Audio_Buffer
-from m_faster_whisper import Faster_Whisper_transcribe
+from m_websocket_stt import WebSocket_STT
 from m_confirm_words import Confirm_Words
 from m_rate_limiter import Rate_Limiter
 from m_vad import VAD
@@ -25,7 +25,7 @@ log = logger.setup_logging()
 
 start_http_server(8042)
 
-# CreateNsAudioPackage, Load_audio, VAD, Faster_Whisper_transcribe, Local_Agreement
+# CreateNsAudioPackage, Load_audio, VAD, WebSocket_STT, Local_Agreement
 controllers = [
     PipelineController(
         mode=ControllerMode.NOT_PARALLEL,
@@ -68,7 +68,7 @@ controllers = [
             PipelinePhase(
                 name="WhisperPhase",
                 modules=[
-                    Faster_Whisper_transcribe(),
+                    WebSocket_STT(),
                 ]
             )
         ]

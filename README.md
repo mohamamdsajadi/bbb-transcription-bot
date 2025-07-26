@@ -78,7 +78,7 @@ docker run -it --rm --gpus all ubuntu nvidia-smi # Test GPU support
      cp .env_example .env
      ```
 
-   - Open the `.env` file and configure the necessary environment variables as per your setup.
+    - Open the `.env` file and configure the necessary environment variables as per your setup. In particular set `STT_WS_URL` to the WebSocket endpoint of your speech-to-text engine.
 
 3. **Start the Application:**
 
